@@ -6,7 +6,7 @@ import StudentList from '@/components/StudentList';
 import AttendanceLog from '@/components/AttendanceLog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, LogOut, LayoutDashboard, Users, ClipboardList } from 'lucide-react';
+import { Shield, LogOut, Users, ClipboardList } from 'lucide-react';
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();

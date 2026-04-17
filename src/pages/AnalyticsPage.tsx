@@ -255,12 +255,14 @@ export default function AnalyticsPage() {
                       <span className="text-muted-foreground">{acc.files?.toLocaleString()} fayl</span>
                       <span className="font-bold">{acc.size_gb} / {acc.max_gb} GB</span>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
                       <div className={`h-full rounded-full transition-all ${
-                        acc.used_pct > 90 ? "bg-rose-500" : acc.used_pct > 70 ? "bg-amber-500" : "bg-blue-500"
+                        acc.size_gb >= 9.5 ? "bg-rose-500 animate-pulse" : acc.used_pct > 70 ? "bg-amber-500" : "bg-blue-500"
                       }`} style={{ width: `${Math.min(acc.used_pct, 100)}%` }} />
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1 text-right">{acc.used_pct}% band</p>
+                    <p className={`text-[10px] mt-1 text-right font-semibold ${acc.size_gb >= 9.5 ? "text-rose-500" : "text-muted-foreground"}`}>
+                      {acc.size_gb >= 9.5 ? "LIMIT!" : `${acc.used_pct}% band`}
+                    </p>
                   </>
                 )}
               </div>

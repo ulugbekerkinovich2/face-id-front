@@ -32,7 +32,8 @@ const TT = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsPage() {
-  const { data: full } = useQuery({ queryKey: ["fullStats"], queryFn: api.getFullStats, refetchInterval: 120_000 });
+  const { data: full } = useQuery({ queryKey: ["fullStats"], queryFn: api.getFullStats, staleTime: 300_000 });
+  const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 600_000 });
   const { data: monthly } = useQuery({ queryKey: ["monthlyChart"], queryFn: api.getMonthlyChart });
   const { data: weekly } = useQuery({ queryKey: ["weeklyChart"], queryFn: () => api.getWeeklyChart(12) });
   const { data: heartbeat } = useQuery({ queryKey: ["heartbeat"], queryFn: () => api.getHeartbeatStats(7) });
@@ -225,6 +226,48 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* ─── R2 STORAGE ─────────────────────────────────────── */}
+      {storage?.accounts && (
+        <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "820ms" }}>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-blue-500" />
+              <h3 className="text-[15px] font-bold">R2 Cloud Storage</h3>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-extrabold tabular-nums">{storage.total_size_gb} GB <span className="text-[12px] font-normal text-muted-foreground">/ {storage.total_max_gb} GB</span></p>
+              <p className="text-[11px] text-muted-foreground">{storage.total_files?.toLocaleString()} ta fayl</p>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-3">
+            {storage.accounts.map((acc: any) => (
+              <div key={acc.name} className="border border-border/40 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] font-bold">{acc.name}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">{acc.bucket}</span>
+                </div>
+                {acc.error ? (
+                  <p className="text-[11px] text-rose-500">Ulanish xatosi</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between text-[11px] mb-1.5">
+                      <span className="text-muted-foreground">{acc.files?.toLocaleString()} fayl</span>
+                      <span className="font-bold">{acc.size_gb} / {acc.max_gb} GB</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${
+                        acc.used_pct > 90 ? "bg-rose-500" : acc.used_pct > 70 ? "bg-amber-500" : "bg-blue-500"
+                      }`} style={{ width: `${Math.min(acc.used_pct, 100)}%` }} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1 text-right">{acc.used_pct}% band</p>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ─── HEARTBEAT (Device Uptime) ────────────────────── */}
       <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "850ms" }}>

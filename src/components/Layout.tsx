@@ -50,7 +50,7 @@ export default function Layout() {
         <nav className="flex-1 px-3 pt-2 space-y-0.5 overflow-y-auto custom-scrollbar">
           {["Asosiy", "Ma'lumotlar", "Tahlil"].map((group) => (
             <div key={group} className="mb-3">
-              <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/30 font-semibold px-3 mb-1.5">
+              <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold px-3 mb-1.5">
                 {group}
               </p>
               {NAV.filter((n) => n.group === group).map((item) => (
@@ -61,8 +61,8 @@ export default function Layout() {
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                       isActive
-                        ? "bg-sidebar-primary/15 text-sidebar-primary shadow-sm"
-                        : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-white/[0.04]"
+                        ? "bg-white/10 text-white shadow-sm"
+                        : "text-white/60 hover:text-white hover:bg-white/[0.06]"
                     }`
                   }
                 >
@@ -75,7 +75,7 @@ export default function Layout() {
         </nav>
 
         <div className="px-4 py-4 border-t border-white/[0.06]">
-          <p className="text-[10px] text-sidebar-foreground/25 font-medium">
+          <p className="text-[10px] text-white/25 font-medium">
             Gate Monitor v2.0
           </p>
         </div>
@@ -116,8 +116,8 @@ export default function Layout() {
               className={({ isActive }) =>
                 `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-sidebar-primary/15 text-sidebar-primary"
-                    : "text-sidebar-foreground/60 hover:text-sidebar-foreground/90 hover:bg-white/[0.04]"
+                    ? "bg-white/10 text-white"
+                    : "text-white/60 hover:text-white hover:bg-white/[0.06]"
                 }`
               }
             >

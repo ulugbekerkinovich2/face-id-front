@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "face-id-front",
       script: "npx",
-      args: "serve -s dist -l 3000",
+      args: "serve -s dist -l 8567",
       cwd: "/var/www/workers/face_data_admin_front",
       env: {
         NODE_ENV: "production",

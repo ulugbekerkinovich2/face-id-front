@@ -10,6 +10,7 @@ import LogsPage from "@/pages/LogsPage";
 import UsersPage from "@/pages/UsersPage";
 import StrangersPage from "@/pages/StrangersPage";
 import AnalyticsPage from "@/pages/AnalyticsPage";
+import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/users" element={<UsersPage />} />
             <Route path="/strangers" element={<StrangersPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -10,6 +10,7 @@ import {
   X,
   Users,
   Ghost,
+  Settings,
 } from "lucide-react";
 
 const NAV = [
@@ -19,6 +20,7 @@ const NAV = [
   { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar" },
   { to: "/strangers", icon: Ghost, label: "Notanishlar", group: "Ma'lumotlar" },
   { to: "/analytics", icon: BarChart3, label: "Statistika", group: "Tahlil" },
+  { to: "/settings", icon: Settings, label: "Sozlamalar", group: "Tahlil" },
 ] as const;
 
 export default function Layout() {

@@ -122,6 +122,14 @@ export const api = {
   getStrangers: (p: { page?: number; per_page?: number; date?: string; device?: string }) =>
     fetchApi<PaginatedResponse<Stranger>>("/strangers/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
   deleteStranger: (id: number) => deleteApi<{ status: string }>(`/strangers/${id}/`),
+
+  // Full Analytics
+  getFullStats: () => fetchApi<any>("/analytics/full/"),
+  getMonthlyChart: () => fetchApi<{ data: any[] }>("/analytics/monthly/"),
+  getWeeklyChart: (weeks = 12) => fetchApi<{ data: any[] }>("/analytics/weekly/", { weeks: String(weeks) }),
+  getHeartbeatStats: (days = 7) => fetchApi<any>("/analytics/heartbeat/", { days: String(days) }),
+  getStrangerStats: () => fetchApi<any>("/analytics/strangers/"),
+  getDeviceDetail: (deviceNum: number, days = 30) => fetchApi<any>(`/analytics/device/${deviceNum}/`, { days: String(days) }),
 };
 
 // ─── Demo Data ─────────────────────────────────────────────────────

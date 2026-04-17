@@ -1,38 +1,30 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { Clock, TrendingUp, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import {
+  Database, ScrollText, Heart, Ghost, Users, ShieldCheck,
+  Calendar, TrendingUp, Activity, Clock, Wifi,
+} from "lucide-react";
 
-const PERIODS = [
-  { label: "7 kun", days: 7 },
-  { label: "14 kun", days: 14 },
-  { label: "30 kun", days: 30 },
-];
+function Num({ value }: { value: number }) {
+  const v = useAnimatedNumber(value);
+  return <>{v.toLocaleString()}</>;
+}
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+const TT = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white rounded-lg shadow-xl shadow-black/10 border border-border/50 px-3 py-2.5">
-      <p className="text-[11px] text-muted-foreground font-medium mb-1.5">{label}</p>
-      {payload.map((item: any) => (
-        <div key={item.name} className="flex items-center gap-2 text-xs">
-          <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
-          <span className="text-muted-foreground">{item.name}:</span>
-          <span className="font-semibold">{item.value}</span>
+    <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-border/30 px-4 py-3">
+      <p className="text-[11px] text-muted-foreground font-semibold mb-2">{label}</p>
+      {payload.map((i: any) => (
+        <div key={i.name} className="flex items-center gap-2 text-[12px] py-0.5">
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: i.color }} />
+          <span className="text-muted-foreground">{i.name}</span>
+          <span className="font-bold ml-auto">{i.value?.toLocaleString()}</span>
         </div>
       ))}
     </div>
@@ -40,201 +32,176 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsPage() {
-  const [period, setPeriod] = useState(14);
+  const { data: full } = useQuery({ queryKey: ["fullStats"], queryFn: api.getFullStats, refetchInterval: 120_000 });
+  const { data: monthly } = useQuery({ queryKey: ["monthlyChart"], queryFn: api.getMonthlyChart });
+  const { data: weekly } = useQuery({ queryKey: ["weeklyChart"], queryFn: () => api.getWeeklyChart(12) });
+  const { data: heartbeat } = useQuery({ queryKey: ["heartbeat"], queryFn: () => api.getHeartbeatStats(7) });
+  const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats });
+  const { data: hourly } = useQuery({ queryKey: ["hourlyChart"], queryFn: () => api.getHourlyChart() });
+  const { data: topUsers } = useQuery({ queryKey: ["topAll"], queryFn: () => api.getTopUsers(30, 10) });
 
-  const { data: dailyChart } = useQuery({
-    queryKey: ["a-daily", period],
-    queryFn: () => api.getDailyChart(period),
-  });
+  const a = full?.all_time ?? {};
+  const t = full?.today ?? {};
+  const w = full?.week ?? {};
+  const m = full?.month ?? {};
 
-  const { data: hourlyChart } = useQuery({
-    queryKey: ["a-hourly"],
-    queryFn: () => api.getHourlyChart(),
-  });
-
-  const { data: topUsers } = useQuery({
-    queryKey: ["a-top", period],
-    queryFn: () => api.getTopUsers(period, 10),
-  });
-
-  const totals = (dailyChart?.data ?? []).reduce(
-    (acc, d) => ({ entries: acc.entries + d.entries, exits: acc.exits + d.exits }),
-    { entries: 0, exits: 0 },
-  );
-  const pieData = [
-    { name: "Kirishlar", value: totals.entries, color: "#10b981" },
-    { name: "Chiqishlar", value: totals.exits, color: "#f43f5e" },
-  ];
-
-  const peakHour = (hourlyChart?.data ?? []).reduce(
-    (max, h) =>
-      h.entries + h.exits > max.total ? { hour: h.hour, total: h.entries + h.exits } : max,
-    { hour: "—", total: 0 },
-  );
-
-  const dailyData = dailyChart?.data ?? [];
-  const avgEntries = dailyData.length > 0 ? Math.round(totals.entries / dailyData.length) : 0;
-  const avgExits = dailyData.length > 0 ? Math.round(totals.exits / dailyData.length) : 0;
+  const PIE_COLORS = ["#10b981", "#f43f5e"];
 
   return (
-    <div className="p-5 lg:p-6 space-y-5">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3 animate-in">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Statistika</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Chuqur tahlil va vizualizatsiya</p>
-        </div>
-        <div className="flex bg-muted/60 rounded-lg p-0.5">
-          {PERIODS.map((p) => (
-            <button
-              key={p.days}
-              onClick={() => setPeriod(p.days)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-all ${
-                period === p.days
-                  ? "bg-white text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+    <div className="p-5 lg:p-6 space-y-6">
+      <div className="animate-in">
+        <h1 className="text-2xl font-extrabold tracking-tight">Statistika & Analitika</h1>
+        <p className="text-[13px] text-muted-foreground mt-0.5">Butun davr uchun barcha jadvallar</p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-in" style={{ animationDelay: "50ms" }}>
-        <div className="bg-white rounded-xl border border-border/40 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <ArrowDownToLine className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Kirishlar
-            </span>
+      {/* ─── ALL TIME STATS ──────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: "Jami loglar", value: a.total_logs ?? 0, icon: ScrollText, color: "from-blue-500 to-blue-600" },
+          { label: "Jami kirish", value: a.total_entries ?? 0, icon: TrendingUp, color: "from-emerald-500 to-emerald-600" },
+          { label: "Jami chiqish", value: a.total_exits ?? 0, icon: Activity, color: "from-rose-500 to-rose-600" },
+          { label: "Foydalanuvchilar", value: a.total_users ?? 0, icon: Users, color: "from-violet-500 to-violet-600" },
+          { label: "Notanish yuzlar", value: a.total_strangers ?? 0, icon: Ghost, color: "from-orange-500 to-orange-600" },
+          { label: "Heartbeatlar", value: a.total_heartbeats ?? 0, icon: Heart, color: "from-pink-500 to-pink-600" },
+        ].map((s, i) => (
+          <div key={s.label} className="count-up bg-white rounded-2xl border border-border/50 p-4" style={{ animationDelay: `${i * 60}ms` }}>
+            <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${s.color} flex items-center justify-center mb-3 shadow-lg`}>
+              <s.icon className="w-4 h-4 text-white" />
+            </div>
+            <p className="text-2xl font-extrabold tabular-nums"><Num value={s.value} /></p>
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1">{s.label}</p>
           </div>
-          <p className="text-2xl font-bold text-emerald-600">{totals.entries.toLocaleString()}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-border/40 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <ArrowUpFromLine className="w-3.5 h-3.5 text-rose-500" />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Chiqishlar
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-rose-500">{totals.exits.toLocaleString()}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-border/40 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Kunlik o'rtacha
-            </span>
-          </div>
-          <p className="text-2xl font-bold">
-            <span className="text-emerald-600">{avgEntries}</span>
-            <span className="text-muted-foreground/30 mx-1">/</span>
-            <span className="text-rose-500">{avgExits}</span>
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-border/40 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-3.5 h-3.5 text-amber-500" />
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
-              Eng gavjum
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-amber-600">{peakHour.hour}</p>
-        </div>
+        ))}
       </div>
 
-      {/* Main chart + Pie */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        <div
-          className="lg:col-span-2 bg-white rounded-xl border border-border/40 p-5 animate-in"
-          style={{ animationDelay: "100ms" }}
-        >
-          <h3 className="text-sm font-semibold mb-5">Kunlik trend</h3>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyData}>
-                <defs>
-                  <linearGradient id="ae" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="ax" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.1} />
-                    <stop offset="100%" stopColor="#f43f5e" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(228 14% 93%)" vertical={false} />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(v) => v.slice(5)}
-                  tick={{ fill: "#94a3b8", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={35} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="entries" name="Kirish" stroke="#10b981" strokeWidth={2} fill="url(#ae)" dot={false} activeDot={{ r: 4, fill: "#fff", strokeWidth: 2 }} />
-                <Area type="monotone" dataKey="exits" name="Chiqish" stroke="#f43f5e" strokeWidth={2} fill="url(#ax)" dot={false} activeDot={{ r: 4, fill: "#fff", strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+      {/* ─── PERIOD COMPARISON ────────────────────────────── */}
+      <div className="grid md:grid-cols-3 gap-4">
+        {[
+          { label: "Bugun", entries: t.entries ?? 0, exits: t.exits ?? 0, extra: `Ichkarida: ${t.currently_inside ?? 0}`, strangers: t.strangers },
+          { label: "Hafta (7 kun)", entries: w.entries ?? 0, exits: w.exits ?? 0 },
+          { label: "Oy (30 kun)", entries: m.entries ?? 0, exits: m.exits ?? 0, strangers: m.strangers },
+        ].map((p, i) => (
+          <div key={p.label} className="count-up bg-white rounded-2xl border border-border/50 p-5" style={{ animationDelay: `${400 + i * 80}ms` }}>
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">{p.label}</p>
+            <div className="flex gap-6">
+              <div>
+                <p className="text-[10px] text-emerald-600 font-semibold">Kirish</p>
+                <p className="text-xl font-extrabold tabular-nums"><Num value={p.entries} /></p>
+              </div>
+              <div>
+                <p className="text-[10px] text-rose-500 font-semibold">Chiqish</p>
+                <p className="text-xl font-extrabold tabular-nums"><Num value={p.exits} /></p>
+              </div>
+              {p.strangers !== undefined && (
+                <div>
+                  <p className="text-[10px] text-orange-500 font-semibold">Notanish</p>
+                  <p className="text-xl font-extrabold tabular-nums"><Num value={p.strangers} /></p>
+                </div>
+              )}
+            </div>
+            {p.extra && <p className="text-[11px] text-blue-600 font-semibold mt-2">{p.extra}</p>}
+          </div>
+        ))}
+      </div>
+
+      {/* ─── SYSTEM INFO ──────────────────────────────────── */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-border/50 p-5 count-up" style={{ animationDelay: "600ms" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Database className="w-4 h-4 text-primary" />
+            <h3 className="text-[13px] font-bold">Tizim ma'lumotlari</h3>
+          </div>
+          <div className="space-y-2 text-[13px]">
+            <div className="flex justify-between py-1.5 border-b border-border/30">
+              <span className="text-muted-foreground">Birinchi yozuv</span>
+              <span className="font-semibold">{a.first_log ? new Date(a.first_log).toLocaleDateString("uz-UZ") : "—"}</span>
+            </div>
+            <div className="flex justify-between py-1.5 border-b border-border/30">
+              <span className="text-muted-foreground">Oxirgi yozuv</span>
+              <span className="font-semibold">{a.last_log ? new Date(a.last_log).toLocaleDateString("uz-UZ") : "—"}</span>
+            </div>
+            <div className="flex justify-between py-1.5 border-b border-border/30">
+              <span className="text-muted-foreground">Faol kunlar</span>
+              <span className="font-semibold">{a.days_active ?? 0} kun</span>
+            </div>
+            <div className="flex justify-between py-1.5 border-b border-border/30">
+              <span className="text-muted-foreground">Kunlik o'rtacha kirish</span>
+              <span className="font-bold text-emerald-600">{a.avg_daily_entries ?? 0}</span>
+            </div>
+            <div className="flex justify-between py-1.5">
+              <span className="text-muted-foreground">Kunlik o'rtacha chiqish</span>
+              <span className="font-bold text-rose-500">{a.avg_daily_exits ?? 0}</span>
+            </div>
           </div>
         </div>
 
         {/* Pie */}
-        <div
-          className="bg-white rounded-xl border border-border/40 p-5 flex flex-col items-center animate-in"
-          style={{ animationDelay: "150ms" }}
-        >
-          <h3 className="text-sm font-semibold self-start mb-2">Nisbat</h3>
-          <div className="h-[180px] w-full">
+        <div className="bg-white rounded-2xl border border-border/50 p-5 count-up" style={{ animationDelay: "650ms" }}>
+          <h3 className="text-[13px] font-bold mb-2">Kirish / Chiqish nisbati (butun davr)</h3>
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={72}
-                  paddingAngle={3}
-                  dataKey="value"
-                  strokeWidth={0}
-                >
-                  {pieData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.color} />
-                  ))}
+                <Pie data={[
+                  { name: "Kirish", value: a.total_entries ?? 0 },
+                  { name: "Chiqish", value: a.total_exits ?? 0 },
+                ]} cx="50%" cy="50%" innerRadius={55} outerRadius={78} paddingAngle={3} dataKey="value" strokeWidth={0}>
+                  {PIE_COLORS.map((c, i) => <Cell key={i} fill={c} />)}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<TT />} />
+                <Legend formatter={(v) => <span className="text-xs">{v}</span>} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
-          <div className="flex gap-4 mt-2">
-            {pieData.map((d) => (
-              <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                <div className="w-2 h-2 rounded-full" style={{ background: d.color }} />
-                <span className="text-muted-foreground">{d.name}</span>
-                <span className="font-semibold">{d.value.toLocaleString()}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>
 
-      {/* Hourly + Top Users */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        <div
-          className="bg-white rounded-xl border border-border/40 p-5 animate-in"
-          style={{ animationDelay: "200ms" }}
-        >
-          <h3 className="text-sm font-semibold mb-5">Soatlik taqsimot (bugun)</h3>
-          <div className="h-[240px]">
+      {/* ─── MONTHLY CHART ────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "700ms" }}>
+        <div className="flex items-center gap-2 mb-5">
+          <Calendar className="w-4 h-4 text-primary" />
+          <h3 className="text-[15px] font-bold">Oylik trend (butun davr)</h3>
+        </div>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={monthly?.data ?? []}>
+              <defs>
+                <linearGradient id="mE" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="mX" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="mS" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f97316" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={50} axisLine={false} tickLine={false} />
+              <Tooltip content={<TT />} />
+              <Area type="monotone" dataKey="entries" name="Kirish" stroke="#10b981" strokeWidth={2.5} fill="url(#mE)" dot={false} />
+              <Area type="monotone" dataKey="exits" name="Chiqish" stroke="#f43f5e" strokeWidth={2.5} fill="url(#mX)" dot={false} />
+              <Area type="monotone" dataKey="strangers" name="Notanish" stroke="#f97316" strokeWidth={2} fill="url(#mS)" dot={false} />
+              <Legend />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ─── WEEKLY + HOURLY ─────────────────────────────── */}
+      <div className="grid lg:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "750ms" }}>
+          <h3 className="text-[15px] font-bold mb-5">Haftalik trend (12 hafta)</h3>
+          <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourlyChart?.data ?? []} barGap={1} barSize={14}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(228 14% 93%)" vertical={false} />
-                <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={28} axisLine={false} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} />
+              <BarChart data={weekly?.data ?? []} barGap={2} barSize={12}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="week" tickFormatter={(v) => v.slice(5)} tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={40} axisLine={false} tickLine={false} />
+                <Tooltip content={<TT />} />
                 <Bar dataKey="entries" name="Kirish" fill="#10b981" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="exits" name="Chiqish" fill="#f43f5e" radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -242,52 +209,143 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div
-          className="bg-white rounded-xl border border-border/40 p-5 animate-in"
-          style={{ animationDelay: "250ms" }}
-        >
-          <h3 className="text-sm font-semibold mb-4">
-            Top tashrifchilar{" "}
-            <span className="text-muted-foreground font-normal">({period} kun)</span>
-          </h3>
-          <div className="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
-            {(topUsers?.data ?? []).map((user, i) => {
-              const maxCount = topUsers?.data?.[0]?.count ?? 1;
+        <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "800ms" }}>
+          <h3 className="text-[15px] font-bold mb-5">Bugungi soatlik taqsimot</h3>
+          <div className="h-[260px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourly?.data ?? []} barGap={2} barSize={14}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={30} axisLine={false} tickLine={false} />
+                <Tooltip content={<TT />} />
+                <Bar dataKey="entries" name="Kirish" fill="#10b981" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="exits" name="Chiqish" fill="#f43f5e" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── HEARTBEAT (Device Uptime) ────────────────────── */}
+      <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "850ms" }}>
+        <div className="flex items-center gap-2 mb-5">
+          <Heart className="w-4 h-4 text-pink-500" />
+          <h3 className="text-[15px] font-bold">Qurilmalar Heartbeat (7 kun)</h3>
+        </div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {(heartbeat?.devices ?? []).map((d: any) => (
+            <div key={d.device_id} className="border border-border/40 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-bold">{d.device_id}</span>
+                <div className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${d.is_online ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${d.is_online ? "bg-emerald-500 pulse-dot" : "bg-gray-400"}`} />
+                  {d.is_online ? "Online" : "Offline"}
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground font-mono">{d.ip}</p>
+              <div className="mt-3 space-y-1.5">
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-muted-foreground">Uptime</span>
+                  <span className={`font-bold ${d.uptime_pct > 90 ? "text-emerald-600" : d.uptime_pct > 50 ? "text-amber-600" : "text-rose-500"}`}>{d.uptime_pct}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${d.uptime_pct > 90 ? "bg-emerald-500" : d.uptime_pct > 50 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${d.uptime_pct}%` }} />
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-muted-foreground">Heartbeatlar</span>
+                  <span className="font-semibold">{d.total_heartbeats?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[11px]">
+                  <span className="text-muted-foreground">Yo'nalish</span>
+                  <span className={`font-bold ${d.direction === "IN" ? "text-emerald-600" : "text-rose-500"}`}>{d.direction}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── STRANGER STATS ──────────────────────────────── */}
+      <div className="grid lg:grid-cols-2 gap-5">
+        <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "900ms" }}>
+          <div className="flex items-center gap-2 mb-5">
+            <Ghost className="w-4 h-4 text-orange-500" />
+            <h3 className="text-[15px] font-bold">Notanish yuzlar statistikasi</h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            {[
+              { label: "Jami", value: strangerStats?.total ?? 0 },
+              { label: "Bugun", value: strangerStats?.today ?? 0 },
+              { label: "Hafta", value: strangerStats?.week ?? 0 },
+              { label: "Oy", value: strangerStats?.month ?? 0 },
+            ].map((s) => (
+              <div key={s.label} className="bg-orange-50/50 rounded-xl p-3 text-center">
+                <p className="text-lg font-extrabold text-orange-600 tabular-nums"><Num value={s.value} /></p>
+                <p className="text-[10px] text-muted-foreground font-semibold">{s.label}</p>
+              </div>
+            ))}
+          </div>
+          {/* Qurilma bo'yicha */}
+          <p className="text-[11px] font-semibold text-muted-foreground mb-2">Qurilma bo'yicha</p>
+          <div className="space-y-1.5">
+            {(strangerStats?.by_device ?? []).slice(0, 8).map((d: any) => {
+              const max = strangerStats?.by_device?.[0]?.count ?? 1;
               return (
-                <div
-                  key={user.name}
-                  className="flex items-center gap-2.5 py-1.5 animate-in"
-                  style={{ animationDelay: `${300 + i * 40}ms` }}
-                >
-                  <span className="w-5 text-[11px] text-muted-foreground font-mono text-right tabular-nums">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-[13px] font-medium truncate">{user.full_name}</p>
-                      <span className="text-[11px] font-bold text-muted-foreground ml-2 tabular-nums">
-                        {user.count}
-                      </span>
-                    </div>
-                    <div className="w-full h-1 rounded-full bg-muted/60 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary transition-all duration-700"
-                        style={{ width: `${(user.count / maxCount) * 100}%` }}
-                      />
-                    </div>
-                    {user.role && (
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{user.role}</p>
-                    )}
+                <div key={d.device_id} className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-muted-foreground w-16">{d.device_id}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-orange-400" style={{ width: `${(d.count / max) * 100}%` }} />
                   </div>
+                  <span className="text-[11px] font-bold tabular-nums w-10 text-right">{d.count}</span>
                 </div>
               );
             })}
-            {(topUsers?.data ?? []).length === 0 && (
-              <div className="text-center py-10">
-                <p className="text-sm text-muted-foreground">Hali ma'lumot yo'q</p>
-              </div>
-            )}
           </div>
+        </div>
+
+        {/* Stranger daily trend */}
+        <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "950ms" }}>
+          <h3 className="text-[15px] font-bold mb-5">Notanish yuzlar trendi (30 kun)</h3>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={strangerStats?.daily_trend ?? []} barSize={10}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={30} axisLine={false} tickLine={false} />
+                <Tooltip content={<TT />} />
+                <Bar dataKey="count" name="Notanish" fill="#f97316" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── TOP USERS 30 days ────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "1000ms" }}>
+        <div className="flex items-center gap-2 mb-5">
+          <ShieldCheck className="w-4 h-4 text-primary" />
+          <h3 className="text-[15px] font-bold">Top 10 tashrifchi (30 kun)</h3>
+        </div>
+        <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
+          {(topUsers?.data ?? []).map((u: any, i: number) => {
+            const max = topUsers?.data?.[0]?.count ?? 1;
+            const medals = ["from-yellow-400 to-amber-500", "from-gray-300 to-slate-400", "from-amber-600 to-orange-700"];
+            return (
+              <div key={u.name} className="flex items-center gap-3">
+                <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${medals[i] ?? "from-slate-400 to-slate-500"} flex items-center justify-center text-[10px] font-bold text-white shadow`}>{i + 1}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[13px] font-semibold truncate">{u.full_name}</p>
+                    <span className="text-[12px] font-bold tabular-nums ml-2">{u.count}</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-100 mt-1 overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary" style={{ width: `${(u.count / max) * 100}%` }} />
+                  </div>
+                  {u.role && <p className="text-[10px] text-muted-foreground mt-0.5">{u.role}</p>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

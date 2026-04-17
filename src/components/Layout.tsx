@@ -32,15 +32,15 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar - desktop */}
-      <aside className="w-[240px] bg-sidebar-background text-sidebar-foreground hidden lg:flex flex-col fixed inset-y-0 z-30">
+      <aside className="w-[240px] hidden lg:flex flex-col fixed inset-y-0 z-30" style={{ background: "#0f172a" }}>
         {/* Logo */}
         <div className="h-[64px] flex items-center gap-3 px-5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sidebar-primary to-indigo-400 flex items-center justify-center shadow-lg shadow-sidebar-primary/20">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b82f6, #818cf8)" }}>
             <Shield className="w-4 h-4 text-white" />
           </div>
           <div className="leading-none">
             <span className="text-[13px] font-bold text-white tracking-tight">Face ID</span>
-            <span className="block text-[10px] text-sidebar-foreground/50 font-medium mt-0.5">
+            <span className="block text-[10px] font-medium mt-0.5" style={{ color: "#94a3b8" }}>
               Monitoring
             </span>
           </div>
@@ -50,7 +50,7 @@ export default function Layout() {
         <nav className="flex-1 px-3 pt-2 space-y-0.5 overflow-y-auto custom-scrollbar">
           {["Asosiy", "Ma'lumotlar", "Tahlil"].map((group) => (
             <div key={group} className="mb-3">
-              <p className="text-[10px] uppercase tracking-widest text-white/30 font-semibold px-3 mb-1.5">
+              <p className="text-[10px] uppercase tracking-widest font-semibold px-3 mb-1.5" style={{ color: "#475569" }}>
                 {group}
               </p>
               {NAV.filter((n) => n.group === group).map((item) => (
@@ -59,12 +59,16 @@ export default function Layout() {
                   to={item.to}
                   end={item.to === "/"}
                   className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 ${
+                    `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
                       isActive
-                        ? "bg-white/10 text-white shadow-sm"
-                        : "text-white/60 hover:text-white hover:bg-white/[0.06]"
+                        ? "text-white"
+                        : "hover:text-white"
                     }`
                   }
+                  style={({ isActive }) => ({
+                    color: isActive ? "#ffffff" : "#94a3b8",
+                    background: isActive ? "rgba(59,130,246,0.15)" : "transparent",
+                  })}
                 >
                   <item.icon className="w-4 h-4" />
                   {item.label}
@@ -74,8 +78,8 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="px-4 py-4 border-t border-white/[0.06]">
-          <p className="text-[10px] text-white/25 font-medium">
+        <div className="px-4 py-4" style={{ borderTop: "1px solid #1e293b" }}>
+          <p className="text-[10px] font-medium" style={{ color: "#475569" }}>
             Gate Monitor v2.0
           </p>
         </div>
@@ -91,18 +95,19 @@ export default function Layout() {
 
       {/* Mobile sidebar */}
       <aside
-        className={`lg:hidden fixed inset-y-0 left-0 w-[260px] bg-sidebar-background text-sidebar-foreground z-50 transition-transform duration-200 ${
+        style={{ background: "#0f172a" }}
+        className={`lg:hidden fixed inset-y-0 left-0 w-[260px] z-50 transition-transform duration-200 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="h-14 flex items-center justify-between px-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-sidebar-primary to-indigo-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b82f6, #818cf8)" }}>
               <Shield className="w-3.5 h-3.5 text-white" />
             </div>
             <span className="text-sm font-bold text-white">Face ID</span>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="text-sidebar-foreground/50">
+          <button onClick={() => setMobileOpen(false)} style={{ color: "#94a3b8" }}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -114,12 +119,12 @@ export default function Layout() {
               end={item.to === "/"}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-white/10 text-white"
-                    : "text-white/60 hover:text-white hover:bg-white/[0.06]"
-                }`
+                `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all`
               }
+              style={({ isActive }) => ({
+                color: isActive ? "#ffffff" : "#94a3b8",
+                background: isActive ? "rgba(59,130,246,0.15)" : "transparent",
+              })}
             >
               <item.icon className="w-4 h-4" />
               {item.label}

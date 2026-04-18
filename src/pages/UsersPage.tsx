@@ -4,26 +4,19 @@ import { api, User } from "@/lib/api";
 import { toast } from "sonner";
 import {
   Search, UserPlus, Trash2, ShieldBan, ShieldCheck,
-  ChevronLeft, ChevronRight, Users, X, Loader2, MoreVertical,
+  ChevronLeft, ChevronRight, Users, X, Loader2,
 } from "lucide-react";
 
 function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const [name, setName] = useState("");
   const [gender, setGender] = useState(0);
   const [extraInfo, setExtraInfo] = useState("");
-
-  const mutation = useMutation({
+  const mut = useMutation({
     mutationFn: () => api.addUser({ name, gender, extra_info: extraInfo }),
-    onSuccess: (data) => {
-      toast.success(data.message);
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      onClose();
-      setName(""); setGender(0); setExtraInfo("");
-    },
+    onSuccess: (d) => { toast.success(d.message); qc.invalidateQueries({ queryKey: ["users"] }); onClose(); setName(""); setGender(0); setExtraInfo(""); },
     onError: (e: any) => toast.error(e.message || "Xatolik"),
   });
-
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -36,31 +29,28 @@ function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void })
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Ism *</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ism Familiya"
-              className="w-full h-10 px-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
+              className="w-full h-10 px-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20" />
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Jinsi</label>
             <div className="flex gap-2">
               {[{ v: 0, l: "Erkak" }, { v: 1, l: "Ayol" }].map((g) => (
                 <button key={g.v} onClick={() => setGender(g.v)}
-                  className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all ${gender === g.v ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}>
-                  {g.l}
-                </button>
+                  className={`flex-1 h-10 rounded-lg text-sm font-medium transition-all ${gender === g.v ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground"}`}>{g.l}</button>
               ))}
             </div>
           </div>
           <div>
             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Izoh</label>
             <input value={extraInfo} onChange={(e) => setExtraInfo(e.target.value)} placeholder="Qo'shimcha..."
-              className="w-full h-10 px-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
+              className="w-full h-10 px-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20" />
           </div>
         </div>
         <div className="flex gap-2 p-5 pt-0">
-          <button onClick={onClose} className="flex-1 h-10 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted transition-colors">Bekor</button>
-          <button onClick={() => mutation.mutate()} disabled={!name.trim() || mutation.isPending}
-            className="flex-1 h-10 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
-            {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-            Qo'shish
+          <button onClick={onClose} className="flex-1 h-10 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted">Bekor</button>
+          <button onClick={() => mut.mutate()} disabled={!name.trim() || mut.isPending}
+            className="flex-1 h-10 rounded-lg text-sm font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2">
+            {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Qo'shish
           </button>
         </div>
       </div>
@@ -68,31 +58,56 @@ function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+function BlockButton({ user, onDone }: { user: User; onDone: () => void }) {
+  const blocked = (user.extra_info || "").startsWith("BLOCKED|");
+  const mut = useMutation({
+    mutationFn: () => blocked ? api.unblockUser(user.id) : api.blockUser(user.id),
+    onSuccess: (d) => {
+      toast.success(d.blocked ? `${user.name} bloklandi` : `${user.name} blokdan chiqarildi`);
+      onDone();
+    },
+    onError: () => toast.error("Xatolik yuz berdi"),
+  });
+
+  return (
+    <button onClick={() => mut.mutate()} disabled={mut.isPending}
+      title={blocked ? "Blokdan chiqarish" : "Bloklash"}
+      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 ${
+        blocked
+          ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+          : "bg-amber-50 text-amber-600 hover:bg-amber-100"
+      }`}>
+      {mut.isPending ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : blocked ? (
+        <ShieldCheck className="w-3.5 h-3.5" />
+      ) : (
+        <ShieldBan className="w-3.5 h-3.5" />
+      )}
+    </button>
+  );
+}
+
 export default function UsersPage() {
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["users", page, search],
     queryFn: () => api.getUsers({ page, per_page: 30, search }),
-    staleTime: 30_000,
+    staleTime: 15_000,
+    keepPreviousData: true,
   });
 
   const deleteMut = useMutation({
     mutationFn: api.deleteUser,
-    onSuccess: () => { toast.success("O'chirildi"); queryClient.invalidateQueries({ queryKey: ["users"] }); },
+    onSuccess: () => { toast.success("O'chirildi"); qc.invalidateQueries({ queryKey: ["users"] }); },
   });
 
-  const blockMut = useMutation({
-    mutationFn: ({ id, action }: { id: number; action: "block" | "unblock" }) =>
-      action === "block" ? api.blockUser(id) : api.unblockUser(id),
-    onSuccess: (d) => { toast.success(d.blocked ? "Bloklandi" : "Blokdan chiqarildi"); queryClient.invalidateQueries({ queryKey: ["users"] }); },
-  });
-
-  const isBlocked = (u: User) => (u.extra_info || "").startsWith("BLOCKED|");
+  const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -100,11 +115,12 @@ export default function UsersPage() {
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Foydalanuvchilar</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
-            Jami: {data?.total?.toLocaleString() ?? "..."} ta
+            Jami: {data?.total?.toLocaleString() ?? "..."}
+            {isFetching && !isLoading && <Loader2 className="w-3 h-3 inline ml-2 animate-spin text-primary" />}
           </p>
         </div>
         <button onClick={() => setShowAdd(true)}
-          className="h-9 px-4 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-2 shadow-sm shadow-primary/20">
+          className="h-9 px-4 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 flex items-center gap-2 shadow-sm shadow-primary/20">
           <UserPlus className="w-3.5 h-3.5" /> Yangi
         </button>
       </div>
@@ -116,7 +132,7 @@ export default function UsersPage() {
           <input placeholder="Ism yoki passport..." value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { setSearch(searchInput); setPage(1); } }}
-            className="w-full h-9 pl-8 pr-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
+            className="w-full h-9 pl-8 pr-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20" />
         </div>
         <button onClick={() => { setSearch(searchInput); setPage(1); }}
           className="h-9 px-4 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90">Qidirish</button>
@@ -129,8 +145,8 @@ export default function UsersPage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border/40">
-                {["#", "Foydalanuvchi", "Lavozim", "Jinsi", "Qurilma", "Holat", ""].map((h) => (
+              <tr className="border-b border-border/40 bg-muted/20">
+                {["#", "Foydalanuvchi", "Lavozim", "Qurilma", "Holat", "Amallar"].map((h) => (
                   <th key={h} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
@@ -138,108 +154,78 @@ export default function UsersPage() {
             <tbody>
               {isLoading ? (
                 [...Array(10)].map((_, i) => (
-                  <tr key={i} className="border-b border-border/20">
-                    <td colSpan={7} className="px-4 py-3"><div className="h-4 skeleton w-full" /></td>
-                  </tr>
+                  <tr key={i} className="border-b border-border/20"><td colSpan={6} className="px-4 py-3"><div className="h-5 skeleton" /></td></tr>
                 ))
               ) : (data?.data ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-16">
-                    <Users className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Topilmadi</p>
-                  </td>
-                </tr>
-              ) : (
-                (data?.data ?? []).map((u, i) => {
-                  const blocked = isBlocked(u);
-                  return (
-                    <tr key={u.id} className={`border-b border-border/20 hover:bg-muted/30 transition-colors ${blocked ? "bg-rose-50/30" : ""}`}>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground tabular-nums w-10">
-                        {(page - 1) * 30 + i + 1}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2.5">
-                          {u.image ? (
-                            <img src={u.image} className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm" loading="lazy" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-[10px] font-bold text-white">
-                              {(u.name || "?")[0]}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-[13px] font-semibold truncate max-w-[200px]">{u.full_name || u.name}</p>
-                            <p className="text-[10px] text-muted-foreground font-mono">{u.name}</p>
+                <tr><td colSpan={6} className="text-center py-16">
+                  <Users className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Topilmadi</p>
+                </td></tr>
+              ) : (data?.data ?? []).map((u, i) => {
+                const blocked = (u.extra_info || "").startsWith("BLOCKED|");
+                return (
+                  <tr key={u.id} className={`border-b border-border/15 hover:bg-muted/20 transition-colors ${blocked ? "bg-rose-50/40" : ""}`}>
+                    <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums">{(page - 1) * 30 + i + 1}</td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2.5">
+                        {u.image ? (
+                          <img src={u.image} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" loading="lazy" />
+                        ) : (
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white ${blocked ? "bg-rose-400" : "bg-gradient-to-br from-primary/60 to-primary"}`}>
+                            {(u.name || "?")[0]}
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {u.role ? (
-                          <span className="text-[11px] bg-primary/8 text-primary px-2 py-0.5 rounded-full font-medium">{u.role}</span>
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">—</span>
                         )}
-                      </td>
-                      <td className="px-4 py-2.5 text-[12px] text-muted-foreground">
-                        {u.gender === "female" ? "Ayol" : "Erkak"}
-                      </td>
-                      <td className="px-4 py-2.5 text-[12px] text-muted-foreground font-mono">
-                        {u.face_id || "—"}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {blocked ? (
-                          <span className="text-[10px] bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full font-semibold">Bloklangan</span>
-                        ) : (
-                          <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-semibold">Faol</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-1">
-                          {blocked ? (
-                            <button onClick={() => blockMut.mutate({ id: u.id, action: "unblock" })}
-                              title="Blokdan chiqarish"
-                              className="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
-                              <ShieldCheck className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button onClick={() => blockMut.mutate({ id: u.id, action: "block" })}
-                              title="Bloklash"
-                              className="w-7 h-7 rounded-md flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors">
-                              <ShieldBan className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          <button onClick={() => { if (confirm(`"${u.name}" o'chirilsinmi?`)) deleteMut.mutate(u.id); }}
-                            title="O'chirish"
-                            className="w-7 h-7 rounded-md flex items-center justify-center bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold truncate max-w-[220px]">{u.full_name || u.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-mono">{u.name}</p>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      {u.role ? <span className="text-[11px] bg-primary/8 text-primary px-2 py-0.5 rounded-full font-medium">{u.role}</span> : <span className="text-[11px] text-muted-foreground">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-[12px] text-muted-foreground font-mono">{u.face_id || "—"}</td>
+                    <td className="px-4 py-2">
+                      {blocked ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full font-bold">
+                          <ShieldBan className="w-3 h-3" /> Bloklangan
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-bold">
+                          <ShieldCheck className="w-3 h-3" /> Faol
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-1">
+                        <BlockButton user={u} onDone={refresh} />
+                        <button onClick={() => { if (confirm(`"${u.name}" o'chirilsinmi?`)) deleteMut.mutate(u.id); }}
+                          disabled={deleteMut.isPending}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-500 hover:bg-rose-100 disabled:opacity-50 transition-all">
+                          {deleteMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         {data && data.total_pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border/30">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/30 bg-muted/10">
             <p className="text-[11px] text-muted-foreground">Jami <strong>{data.total.toLocaleString()}</strong></p>
             <div className="flex items-center gap-1">
-              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-border/40 hover:bg-muted disabled:opacity-30 transition-colors">
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <span className="text-xs font-medium px-2 tabular-nums">{page} / {data.total_pages}</span>
-              <button disabled={page >= data.total_pages} onClick={() => setPage(p => p + 1)}
-                className="w-8 h-8 flex items-center justify-center rounded-md border border-border/40 hover:bg-muted disabled:opacity-30 transition-colors">
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              <button disabled={page <= 1} onClick={() => setPage(1)} className="w-8 h-8 flex items-center justify-center rounded-md border border-border/40 hover:bg-muted disabled:opacity-20 text-xs font-bold">1</button>
+              <button disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="w-8 h-8 flex items-center justify-center rounded-md border border-border/40 hover:bg-muted disabled:opacity-20"><ChevronLeft className="w-3.5 h-3.5" /></button>
+              <span className="text-xs font-semibold px-3 tabular-nums bg-primary/5 rounded-md py-1.5">{page}</span>
+              <button disabled={page >= data.total_pages} onClick={() => setPage(p => p + 1)} className="w-8 h-8 flex items-center justify-center rounded-md border border-border/40 hover:bg-muted disabled:opacity-20"><ChevronRight className="w-3.5 h-3.5" /></button>
+              <button disabled={page >= data.total_pages} onClick={() => setPage(data.total_pages)} className="w-8 h-8 flex items-center justify-center rounded-md border border-border/40 hover:bg-muted disabled:opacity-20 text-xs font-bold">{data.total_pages}</button>
             </div>
           </div>
         )}
       </div>
-
       <AddUserModal open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   );

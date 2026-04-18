@@ -1,10 +1,80 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
   ArrowUpFromLine, Calendar, ScrollText, X, Eye,
+  ShieldBan, ShieldCheck, Loader2,
 } from "lucide-react";
+
+function BlockFromLog({ name, onClose }: { name: string; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: users } = useQuery({
+    queryKey: ["findUser", name],
+    queryFn: () => api.getUsers({ search: name, per_page: 5 }),
+    enabled: !!name,
+  });
+
+  const blockMut = useMutation({
+    mutationFn: (id: number) => api.blockUser(id),
+    onSuccess: () => { toast.success(`${name} bloklandi`); qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+    onError: () => toast.error("Xatolik"),
+  });
+  const unblockMut = useMutation({
+    mutationFn: (id: number) => api.unblockUser(id),
+    onSuccess: () => { toast.success(`${name} blokdan chiqarildi`); qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+    onError: () => toast.error("Xatolik"),
+  });
+
+  const found = (users?.data ?? []).filter((u) => u.name === name || u.name?.includes(name));
+  const loading = blockMut.isPending || unblockMut.isPending;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-in" onClick={(e) => e.stopPropagation()}>
+        <div className="p-5 border-b border-border/30">
+          <h3 className="text-base font-bold">Foydalanuvchini boshqarish</h3>
+          <p className="text-[12px] text-muted-foreground mt-0.5">{name}</p>
+        </div>
+        <div className="p-5">
+          {found.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Foydalanuvchi topilmadi</p>
+          ) : found.map((u) => {
+            const blocked = (u.extra_info || "").startsWith("BLOCKED|");
+            return (
+              <div key={u.id} className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2">
+                  {u.image ? (
+                    <img src={u.image} className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold">{(u.name||"?")[0]}</div>
+                  )}
+                  <div>
+                    <p className="text-[12px] font-semibold">{u.full_name || u.name}</p>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${blocked ? "bg-rose-100 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>
+                      {blocked ? "BLOKLANGAN" : "FAOL"}
+                    </span>
+                  </div>
+                </div>
+                <button disabled={loading} onClick={() => blocked ? unblockMut.mutate(u.id) : blockMut.mutate(u.id)}
+                  className={`h-8 px-3 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-all disabled:opacity-50 ${
+                    blocked ? "bg-emerald-500 text-white hover:bg-emerald-600" : "bg-rose-500 text-white hover:bg-rose-600"
+                  }`}>
+                  {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : blocked ? <ShieldCheck className="w-3 h-3" /> : <ShieldBan className="w-3 h-3" />}
+                  {blocked ? "Blokdan chiqarish" : "Bloklash"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="px-5 pb-5">
+          <button onClick={onClose} className="w-full h-9 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted">Yopish</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function LogsPage() {
   const [page, setPage] = useState(1);
@@ -13,6 +83,7 @@ export default function LogsPage() {
   const [date, setDate] = useState("");
   const [direction, setDirection] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [blockUser, setBlockUser] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["logs", page, search, date, direction],
@@ -75,7 +146,7 @@ export default function LogsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/40 bg-muted/20">
-                {["#", "Rasm", "Ism", "Yo'nalish", "Qurilma", "O'xshashlik", "Vaqt"].map((h) => (
+                {["#", "Rasm", "Ism", "Yo'nalish", "Qurilma", "O'xshashlik", "Vaqt", ""].map((h) => (
                   <th key={h} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
@@ -89,7 +160,7 @@ export default function LogsPage() {
                 ))
               ) : (data?.data ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-20">
+                  <td colSpan={8} className="text-center py-20">
                     <ScrollText className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">Ma'lumot topilmadi</p>
                   </td>
@@ -162,6 +233,13 @@ export default function LogsPage() {
                         </div>
                       ) : "—"}
                     </td>
+                    <td className="px-4 py-2">
+                      <button onClick={() => setBlockUser(log.name)}
+                        title="Bloklash / Blokdan chiqarish"
+                        className="w-7 h-7 rounded-md flex items-center justify-center bg-muted/50 text-muted-foreground hover:bg-amber-50 hover:text-amber-600 transition-all">
+                        <ShieldBan className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -193,6 +271,9 @@ export default function LogsPage() {
           </div>
         )}
       </div>
+
+      {/* Block modal */}
+      {blockUser && <BlockFromLog name={blockUser} onClose={() => setBlockUser(null)} />}
 
       {/* Lightbox */}
       {lightbox && (

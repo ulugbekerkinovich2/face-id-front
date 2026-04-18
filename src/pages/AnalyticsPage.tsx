@@ -32,14 +32,14 @@ const TT = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsPage() {
-  const { data: full } = useQuery({ queryKey: ["fullStats"], queryFn: api.getFullStats, staleTime: 300_000 });
-  const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 600_000 });
-  const { data: monthly } = useQuery({ queryKey: ["monthlyChart"], queryFn: api.getMonthlyChart });
-  const { data: weekly } = useQuery({ queryKey: ["weeklyChart"], queryFn: () => api.getWeeklyChart(12) });
-  const { data: heartbeat } = useQuery({ queryKey: ["heartbeat"], queryFn: () => api.getHeartbeatStats(7) });
-  const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats });
-  const { data: hourly } = useQuery({ queryKey: ["hourlyChart"], queryFn: () => api.getHourlyChart() });
-  const { data: topUsers } = useQuery({ queryKey: ["topAll"], queryFn: () => api.getTopUsers(30, 10) });
+  const { data: full } = useQuery({ queryKey: ["fullStats"], queryFn: api.getFullStats, staleTime: 600_000 });
+  const { data: monthly } = useQuery({ queryKey: ["monthlyChart"], queryFn: api.getMonthlyChart, staleTime: 600_000, enabled: !!full });
+  const { data: weekly } = useQuery({ queryKey: ["weeklyChart"], queryFn: () => api.getWeeklyChart(12), staleTime: 600_000, enabled: !!full });
+  const { data: hourly } = useQuery({ queryKey: ["hourlyChart"], queryFn: () => api.getHourlyChart(), staleTime: 300_000, enabled: !!full });
+  const { data: topUsers } = useQuery({ queryKey: ["topAll"], queryFn: () => api.getTopUsers(30, 10), staleTime: 600_000, enabled: !!full });
+  const { data: heartbeat } = useQuery({ queryKey: ["heartbeat"], queryFn: () => api.getHeartbeatStats(7), staleTime: 600_000, enabled: !!full });
+  const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats, staleTime: 600_000, enabled: !!full });
+  const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 3600_000, enabled: !!full });
 
   const a = full?.all_time ?? {};
   const t = full?.today ?? {};

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
-  ArrowUpFromLine, Calendar, ScrollText, X, Eye,
+  ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan,
 } from "lucide-react";
 
 export default function LogsPage() {
@@ -19,6 +19,18 @@ export default function LogsPage() {
     queryFn: () => api.getLogs({ page, per_page: 25, search, date, direction }),
     staleTime: 15_000,
   });
+
+  // Bloklangan userlar ro'yxati
+  const { data: blockedData } = useQuery({
+    queryKey: ["blockedUsers"],
+    queryFn: () => api.getBlockedUsers(),
+    staleTime: 60_000,
+  });
+  const blockedNames = useMemo(() => {
+    const set = new Set<string>();
+    (blockedData?.data ?? []).forEach((u: any) => set.add(u.name));
+    return set;
+  }, [blockedData]);
 
   const handleSearch = () => { setSearch(searchInput); setPage(1); };
 
@@ -95,8 +107,10 @@ export default function LogsPage() {
                   </td>
                 </tr>
               ) : (
-                (data?.data ?? []).map((log, i) => (
-                  <tr key={log.id} className="border-b border-border/15 hover:bg-primary/[0.02] transition-colors group">
+                (data?.data ?? []).map((log, i) => {
+                  const isBlocked = blockedNames.has(log.name);
+                  return (
+                  <tr key={log.id} className={`border-b border-border/15 hover:bg-primary/[0.02] transition-colors group ${isBlocked ? "bg-rose-50/50" : ""}`}>
                     <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums w-10">
                       {(page - 1) * 25 + i + 1}
                     </td>
@@ -121,7 +135,14 @@ export default function LogsPage() {
                     </td>
 
                     <td className="px-4 py-2">
-                      <p className="text-[13px] font-semibold">{log.name || "Noma'lum"}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-[13px] font-semibold">{log.name || "Noma'lum"}</p>
+                        {isBlocked && (
+                          <span className="inline-flex items-center gap-0.5 text-[8px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full font-bold">
+                            <ShieldBan className="w-2.5 h-2.5" />BLOK
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-4 py-2">
@@ -163,7 +184,8 @@ export default function LogsPage() {
                       ) : "—"}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

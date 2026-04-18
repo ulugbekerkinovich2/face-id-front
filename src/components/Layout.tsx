@@ -11,6 +11,7 @@ import {
   Users,
   Ghost,
   Settings,
+  ShieldBan,
 } from "lucide-react";
 
 const NAV = [
@@ -18,6 +19,7 @@ const NAV = [
   { to: "/devices", icon: Router, label: "Qurilmalar", group: "Asosiy" },
   { to: "/logs", icon: ScrollText, label: "Loglar", group: "Ma'lumotlar" },
   { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar" },
+  { to: "/blocked", icon: ShieldBan, label: "Bloklangan", group: "Ma'lumotlar" },
   { to: "/strangers", icon: Ghost, label: "Notanishlar", group: "Ma'lumotlar" },
   { to: "/analytics", icon: BarChart3, label: "Statistika", group: "Tahlil" },
   { to: "/settings", icon: Settings, label: "Sozlamalar", group: "Tahlil" },

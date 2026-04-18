@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, User } from "@/lib/api";
 import { toast } from "sonner";
 import {
-  Search, UserPlus, Trash2, ShieldBan, ShieldCheck,
+  Search, UserPlus, Trash2,
   ChevronLeft, ChevronRight, Users, X, Loader2,
 } from "lucide-react";
 
@@ -58,38 +58,6 @@ function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
-function BlockButton({ user, onDone }: { user: User; onDone: () => void }) {
-  const blocked = (user.extra_info || "").startsWith("BLOCKED|");
-  const mut = useMutation({
-    mutationFn: () => blocked ? api.unblockUser(user.id) : api.blockUser(user.id),
-    onSuccess: (d: any) => {
-      toast.success(d.message || (d.blocked ? "Bloklandi" : "Blokdan chiqarildi"), {
-        description: `${d.devices_ok ?? "?"}/${d.devices_total ?? "?"} qurilmada`,
-      });
-      onDone();
-    },
-    onError: () => toast.error("Xatolik yuz berdi"),
-  });
-
-  return (
-    <button onClick={() => mut.mutate()} disabled={mut.isPending}
-      title={blocked ? "Blokdan chiqarish" : "Bloklash"}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 ${
-        blocked
-          ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-          : "bg-amber-50 text-amber-600 hover:bg-amber-100"
-      }`}>
-      {mut.isPending ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-      ) : blocked ? (
-        <ShieldCheck className="w-3.5 h-3.5" />
-      ) : (
-        <ShieldBan className="w-3.5 h-3.5" />
-      )}
-    </button>
-  );
-}
-
 export default function UsersPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
@@ -108,8 +76,6 @@ export default function UsersPage() {
     mutationFn: api.deleteUser,
     onSuccess: () => { toast.success("O'chirildi"); qc.invalidateQueries({ queryKey: ["users"] }); },
   });
-
-  const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -148,7 +114,7 @@ export default function UsersPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/40 bg-muted/20">
-                {["#", "Foydalanuvchi", "Lavozim", "Qurilma", "Holat", "Amallar"].map((h) => (
+                {["#", "Foydalanuvchi", "Lavozim", "Qurilma", ""].map((h) => (
                   <th key={h} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
@@ -159,21 +125,19 @@ export default function UsersPage() {
                   <tr key={i} className="border-b border-border/20"><td colSpan={6} className="px-4 py-3"><div className="h-5 skeleton" /></td></tr>
                 ))
               ) : (data?.data ?? []).length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-16">
+                <tr><td colSpan={5} className="text-center py-16">
                   <Users className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
                   <p className="text-sm text-muted-foreground">Topilmadi</p>
                 </td></tr>
-              ) : (data?.data ?? []).map((u, i) => {
-                const blocked = (u.extra_info || "").startsWith("BLOCKED|");
-                return (
-                  <tr key={u.id} className={`border-b border-border/15 hover:bg-muted/20 transition-colors ${blocked ? "bg-rose-50/40" : ""}`}>
+              ) : (data?.data ?? []).map((u, i) => (
+                  <tr key={u.id} className="border-b border-border/15 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums">{(page - 1) * 30 + i + 1}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2.5">
                         {u.image ? (
                           <img src={u.image} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" loading="lazy" />
                         ) : (
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white ${blocked ? "bg-rose-400" : "bg-gradient-to-br from-primary/60 to-primary"}`}>
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-[11px] font-bold text-white">
                             {(u.name || "?")[0]}
                           </div>
                         )}
@@ -188,29 +152,14 @@ export default function UsersPage() {
                     </td>
                     <td className="px-4 py-2 text-[12px] text-muted-foreground font-mono">{u.face_id || "—"}</td>
                     <td className="px-4 py-2">
-                      {blocked ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full font-bold">
-                          <ShieldBan className="w-3 h-3" /> Bloklangan
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-bold">
-                          <ShieldCheck className="w-3 h-3" /> Faol
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-1">
-                        <BlockButton user={u} onDone={refresh} />
-                        <button onClick={() => { if (confirm(`"${u.name}" o'chirilsinmi?`)) deleteMut.mutate(u.id); }}
-                          disabled={deleteMut.isPending}
-                          className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-500 hover:bg-rose-100 disabled:opacity-50 transition-all">
-                          {deleteMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
+                      <button onClick={() => { if (confirm(`"${u.name}" o'chirilsinmi?`)) deleteMut.mutate(u.id); }}
+                        disabled={deleteMut.isPending}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center bg-rose-50 text-rose-500 hover:bg-rose-100 disabled:opacity-50 transition-all">
+                        {deleteMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
                     </td>
                   </tr>
-                );
-              })}
+              ))}
             </tbody>
           </table>
         </div>

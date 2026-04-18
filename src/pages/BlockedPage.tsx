@@ -98,23 +98,12 @@ export default function BlockedPage() {
   const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data: blockedData, isLoading, isFetching } = useQuery({
     queryKey: ["blockedUsers"],
-    queryFn: async () => {
-      // Barcha userlardan BLOCKED larni filter
-      const all: User[] = [];
-      let page = 1;
-      while (true) {
-        const res = await api.getUsers({ page, per_page: 50 });
-        const blocked = res.data.filter((u: User) => (u.extra_info || "").startsWith("BLOCKED|"));
-        all.push(...blocked);
-        if (page >= res.total_pages) break;
-        page++;
-      }
-      return all;
-    },
+    queryFn: () => api.getBlockedUsers(),
     staleTime: 30_000,
   });
+  const data = blockedData?.data;
 
   const unblockMut = useMutation({
     mutationFn: (id: number) => api.unblockUser(id),

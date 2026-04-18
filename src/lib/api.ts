@@ -132,6 +132,7 @@ export const api = {
   getDeviceDetail: (deviceNum: number, days = 30) => fetchApi<any>(`/analytics/device/${deviceNum}/`, { days: String(days) }),
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),
   getSettings: () => fetchApi<any>("/settings/"),
+  getBlockedUsers: () => fetchApi<{ total: number; data: User[] }>("/users/blocked/"),
 };
 
 // ─── Demo Data ─────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
@@ -20,17 +20,6 @@ export default function LogsPage() {
     staleTime: 15_000,
   });
 
-  // Bloklangan userlar ro'yxati
-  const { data: blockedData } = useQuery({
-    queryKey: ["blockedUsers"],
-    queryFn: () => api.getBlockedUsers(),
-    staleTime: 60_000,
-  });
-  const blockedNames = useMemo(() => {
-    const set = new Set<string>();
-    (blockedData?.data ?? []).forEach((u: any) => set.add(u.name));
-    return set;
-  }, [blockedData]);
 
   const handleSearch = () => { setSearch(searchInput); setPage(1); };
 
@@ -108,7 +97,7 @@ export default function LogsPage() {
                 </tr>
               ) : (
                 (data?.data ?? []).map((log, i) => {
-                  const isBlocked = blockedNames.has(log.name);
+                  const isBlocked = log.is_blocked;
                   return (
                   <tr key={log.id} className={`border-b border-border/15 hover:bg-primary/[0.02] transition-colors group ${isBlocked ? "bg-rose-50/50" : ""}`}>
                     <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums w-10">

@@ -69,6 +69,7 @@ export interface LogEntry {
   id: number; name: string; face_id: number;
   direction: "IN" | "OUT" | "UNKNOWN";
   similarity: number; time: string; image: string | null;
+  is_blocked: boolean;
 }
 
 export interface TopUser {

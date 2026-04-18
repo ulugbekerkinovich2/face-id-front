@@ -18,12 +18,18 @@ function BlockFromLog({ name, onClose }: { name: string; onClose: () => void }) 
 
   const blockMut = useMutation({
     mutationFn: (id: number) => api.blockUser(id),
-    onSuccess: () => { toast.success(`${name} bloklandi`); qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+    onSuccess: (d: any) => {
+      toast.success(d.message || `${name} bloklandi`, { description: `${d.devices_ok ?? "?"}/${d.devices_total ?? "?"} qurilmada` });
+      qc.invalidateQueries({ queryKey: ["users"] }); onClose();
+    },
     onError: () => toast.error("Xatolik"),
   });
   const unblockMut = useMutation({
     mutationFn: (id: number) => api.unblockUser(id),
-    onSuccess: () => { toast.success(`${name} blokdan chiqarildi`); qc.invalidateQueries({ queryKey: ["users"] }); onClose(); },
+    onSuccess: (d: any) => {
+      toast.success(d.message || `${name} blokdan chiqarildi`, { description: `${d.devices_ok ?? "?"}/${d.devices_total ?? "?"} qurilmada` });
+      qc.invalidateQueries({ queryKey: ["users"] }); onClose();
+    },
     onError: () => toast.error("Xatolik"),
   });
 

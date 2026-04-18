@@ -62,8 +62,10 @@ function BlockButton({ user, onDone }: { user: User; onDone: () => void }) {
   const blocked = (user.extra_info || "").startsWith("BLOCKED|");
   const mut = useMutation({
     mutationFn: () => blocked ? api.unblockUser(user.id) : api.blockUser(user.id),
-    onSuccess: (d) => {
-      toast.success(d.blocked ? `${user.name} bloklandi` : `${user.name} blokdan chiqarildi`);
+    onSuccess: (d: any) => {
+      toast.success(d.message || (d.blocked ? "Bloklandi" : "Blokdan chiqarildi"), {
+        description: `${d.devices_ok ?? "?"}/${d.devices_total ?? "?"} qurilmada`,
+      });
       onDone();
     },
     onError: () => toast.error("Xatolik yuz berdi"),

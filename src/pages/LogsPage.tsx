@@ -18,6 +18,7 @@ export default function LogsPage() {
     queryKey: ["logs", page, search, date, direction],
     queryFn: () => api.getLogs({ page, per_page: 25, search, date, direction }),
     staleTime: 15_000,
+    placeholderData: (prev: any) => prev,
   });
 
 
@@ -109,14 +110,14 @@ export default function LogsPage() {
                       {log.image ? (
                         <div className="relative cursor-pointer group/img" onClick={() => setLightbox(log.image)}>
                           <img src={log.image} alt="" loading="lazy"
-                            className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md group-hover/img:shadow-lg group-hover/img:scale-105 transition-all duration-200" />
+                            className="w-14 h-14 rounded-xl object-cover border-2 border-white shadow-md group-hover/img:shadow-lg group-hover/img:scale-105 transition-all duration-200" />
                           <div className="absolute inset-0 rounded-xl bg-black/0 group-hover/img:bg-black/10 transition-all flex items-center justify-center">
                             <Eye className="w-4 h-4 text-white opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow-lg" />
                           </div>
                         </div>
                       ) : (
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-                          <span className="text-[13px] font-bold text-muted-foreground/40">
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                          <span className="text-[14px] font-bold text-muted-foreground/40">
                             {(log.name || "?")[0]}
                           </span>
                         </div>

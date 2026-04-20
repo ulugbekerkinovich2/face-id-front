@@ -69,7 +69,7 @@ export default function UsersPage() {
     queryKey: ["users", page, search],
     queryFn: () => api.getUsers({ page, per_page: 30, search }),
     staleTime: 15_000,
-    keepPreviousData: true,
+    placeholderData: (prev: any) => prev,
   });
 
   const deleteMut = useMutation({

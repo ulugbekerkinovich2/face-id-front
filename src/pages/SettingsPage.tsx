@@ -21,7 +21,8 @@ export default function SettingsPage() {
   const { data: storage } = useQuery({
     queryKey: ["storage"],
     queryFn: () => api.getStorageStats(),
-    staleTime: 300_000,
+    staleTime: 60_000,
+    refetchOnMount: true,
   });
 
   return (

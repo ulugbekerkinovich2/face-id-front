@@ -134,6 +134,16 @@ export const api = {
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),
   getSettings: () => fetchApi<any>("/settings/"),
   getBlockedUsers: () => fetchApi<{ total: number; data: User[] }>("/users/blocked/"),
+  bulkBlock: (names: string[], action: "block" | "unblock") =>
+    postApi<any>("/users/bulk-block/", { names, action }),
+  bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("action", action);
+    const res = await fetch(`${API_BASE}/users/bulk-block-excel/`, { method: "POST", body: fd });
+    if (!res.ok) throw new Error(`${res.status}`);
+    return res.json();
+  },
 };
 
 // ─── Demo Data ─────────────────────────────────────────────────────

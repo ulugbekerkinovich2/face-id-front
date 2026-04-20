@@ -136,6 +136,13 @@ export const api = {
   getBlockedUsers: () => fetchApi<{ total: number; data: User[] }>("/users/blocked/"),
   bulkBlock: (names: string[], action: "block" | "unblock") =>
     postApi<any>("/users/bulk-block/", { names, action }),
+  checkUserStatus: (name: string) => fetchApi<{
+    found: boolean; name: string; full_name?: string; role?: string;
+    is_blocked?: boolean; status?: string; devices_count?: number;
+    devices?: number[]; last_seen?: string; last_device?: number;
+    message?: string;
+  }>("/users/check/", { name }),
+
   bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
     const fd = new FormData();
     fd.append("file", file);

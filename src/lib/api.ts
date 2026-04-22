@@ -153,7 +153,12 @@ export const api = {
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),
   getSettings: () => fetchApi<any>("/settings/"),
   getBlockedUsers: (p: { page?: number; per_page?: number; search?: string } = {}) =>
-    fetchApi<PaginatedResponse<User> & { all_devices?: number[] }>("/users/blocked/",
+    fetchApi<PaginatedResponse<User> & {
+      all_devices?: number[];
+      in_devices?: number[];
+      out_devices?: number[];
+      device_directions?: Record<string, "IN" | "OUT">;
+    }>("/users/blocked/",
       Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
   bulkBlock: (names: string[], action: "block" | "unblock") =>
     postApi<any>("/users/bulk-block/", { names, action }),

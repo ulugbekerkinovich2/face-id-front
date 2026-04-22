@@ -402,7 +402,8 @@ export default function BlockedPage() {
   const blocked = blockedData?.data ?? [];
   const total = blockedData?.total ?? 0;
   const totalPages = blockedData?.total_pages ?? 1;
-  const allDevices = (blockedData?.all_devices ?? []) as number[];
+  const inDevices = (blockedData?.in_devices ?? []) as number[];
+  const outDevices = (blockedData?.out_devices ?? []) as number[];
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -516,26 +517,37 @@ export default function BlockedPage() {
                     {u.role ? <span className="text-[11px] bg-primary/8 text-primary px-2 py-0.5 rounded-full font-medium">{u.role}</span> : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {allDevices.map((fid) => {
-                        const state = u.device_states?.[String(fid)] ?? "missing";
-                        const styles =
-                          state === "blocked" ? "bg-rose-500 text-white border-rose-600" :
-                          state === "allowed" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                          state === "missing" ? "bg-muted text-muted-foreground border-border/60" :
-                          "bg-amber-100 text-amber-700 border-amber-200";
-                        const title =
-                          state === "blocked" ? `${fid} — bloklangan (utype=1)` :
-                          state === "allowed" ? `${fid} — ruxsat etilgan (utype=0)` :
-                          state === "missing" ? `${fid} — qurilmada yo'q` :
-                          `${fid} — noma'lum`;
-                        return (
-                          <span key={fid} title={title}
-                            className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${styles}`}>
-                            {String(fid).slice(-4)}
+                    <div className="space-y-1.5">
+                      {[
+                        { label: "Kirish", devices: inDevices, arrow: "↓" },
+                        { label: "Chiqish", devices: outDevices, arrow: "↑" },
+                      ].map((row) => (
+                        <div key={row.label} className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground w-14 shrink-0">
+                            {row.arrow} {row.label}
                           </span>
-                        );
-                      })}
+                          <div className="flex flex-wrap gap-1">
+                            {row.devices.map((fid) => {
+                              const state = u.device_states?.[String(fid)] ?? "missing";
+                              const styles =
+                                state === "blocked" ? "bg-rose-500 text-white border-rose-600" :
+                                state === "allowed" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                                state === "missing" ? "bg-muted text-muted-foreground border-border/60" :
+                                "bg-amber-100 text-amber-700 border-amber-200";
+                              const stateLabel =
+                                state === "blocked" ? "bloklangan" :
+                                state === "allowed" ? "ruxsat" :
+                                state === "missing" ? "qurilmada yo'q" : "noma'lum";
+                              return (
+                                <span key={fid} title={`${fid} (${row.label}) — ${stateLabel}`}
+                                  className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${styles}`}>
+                                  {String(fid).slice(-4)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </td>
                   <td className="px-4 py-3">

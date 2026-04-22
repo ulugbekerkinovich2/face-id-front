@@ -351,22 +351,57 @@ export default function BlockedPage() {
   const [showBulkText, setShowBulkText] = useState<"block" | "unblock" | null>(null);
   const [showExcel, setShowExcel] = useState<"block" | "unblock" | null>(null);
   const [showCheck, setShowCheck] = useState(false);
+  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const perPage = 50;
 
+  const queryKey = ["blockedUsers", page, search] as const;
   const { data: blockedData, isLoading, isFetching } = useQuery({
-    queryKey: ["blockedUsers"],
-    queryFn: () => api.getBlockedUsers(),
+    queryKey,
+    queryFn: () => api.getBlockedUsers({ page, per_page: perPage, search }),
     staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
+
+  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
   const unblockMut = useMutation({
     mutationFn: (id: number) => api.unblockUser(id),
+    onMutate: async (id: number) => {
+      await qc.cancelQueries({ queryKey: ["blockedUsers"] });
+      const prev = qc.getQueryData<{ total: number; page: number; per_page: number; total_pages: number; data: User[] }>(queryKey);
+      if (prev) {
+        qc.setQueryData(queryKey, {
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+          data: prev.data.filter((u) => u.id !== id),
+        });
+      }
+      setPendingIds((s) => new Set(s).add(id));
+      return { prev };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
+      toast.error("Xatolik — qaytadan urinib ko'ring");
+    },
     onSuccess: (d: any) => {
       toast.success(d.message);
+    },
+    onSettled: (_d, _e, id) => {
+      setPendingIds((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      });
       qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 
   const blocked = blockedData?.data ?? [];
+  const total = blockedData?.total ?? 0;
+  const totalPages = blockedData?.total_pages ?? 1;
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -374,7 +409,7 @@ export default function BlockedPage() {
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Bloklangan</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
-            {blocked.length} ta bloklangan
+            Jami: {total} ta
             {isFetching && !isLoading && <Loader2 className="w-3 h-3 inline ml-2 animate-spin text-primary" />}
           </p>
         </div>
@@ -400,6 +435,27 @@ export default function BlockedPage() {
             <ShieldCheck className="w-3.5 h-3.5" /> Blokdan chiqarish
           </button>
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="flex gap-2 animate-in" style={{ animationDelay: "50ms" }}>
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input placeholder="Ism yoki passport bo'yicha qidirish..." value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { setSearch(searchInput.trim()); setPage(1); } }}
+            className="w-full h-9 pl-8 pr-8 text-sm rounded-lg border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20" />
+          {searchInput && (
+            <button onClick={() => { setSearchInput(""); setSearch(""); setPage(1); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded hover:bg-muted">
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        <button onClick={() => { setSearch(searchInput.trim()); setPage(1); }}
+          className="h-9 px-4 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90">
+          Qidirish
+        </button>
       </div>
 
       {/* Table */}
@@ -446,9 +502,9 @@ export default function BlockedPage() {
                   </td>
                   <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono">{u.face_id || "—"}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => unblockMut.mutate(u.id)} disabled={unblockMut.isPending}
+                    <button onClick={() => unblockMut.mutate(u.id)} disabled={pendingIds.has(u.id)}
                       className="h-8 px-3 rounded-lg text-[11px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-1.5">
-                      {unblockMut.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                      {pendingIds.has(u.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
                       Blokdan chiqarish
                     </button>
                   </td>
@@ -458,6 +514,28 @@ export default function BlockedPage() {
           </table>
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-2 animate-in">
+          <p className="text-[12px] text-muted-foreground">
+            {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} / {total}
+          </p>
+          <div className="flex gap-1">
+            <button onClick={() => setPage(1)} disabled={page === 1}
+              className="h-8 px-3 text-xs font-semibold rounded-lg bg-white border border-border/60 hover:bg-muted disabled:opacity-40">«</button>
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+              className="h-8 px-3 text-xs font-semibold rounded-lg bg-white border border-border/60 hover:bg-muted disabled:opacity-40">‹</button>
+            <span className="h-8 px-3 text-xs font-semibold rounded-lg bg-primary text-white flex items-center">
+              {page} / {totalPages}
+            </span>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+              className="h-8 px-3 text-xs font-semibold rounded-lg bg-white border border-border/60 hover:bg-muted disabled:opacity-40">›</button>
+            <button onClick={() => setPage(totalPages)} disabled={page >= totalPages}
+              className="h-8 px-3 text-xs font-semibold rounded-lg bg-white border border-border/60 hover:bg-muted disabled:opacity-40">»</button>
+          </div>
+        </div>
+      )}
 
       <AddBlockModal open={showAdd} onClose={() => setShowAdd(false)} />
       <BulkTextModal open={!!showBulkText} onClose={() => setShowBulkText(null)} action={showBulkText || "block"} />

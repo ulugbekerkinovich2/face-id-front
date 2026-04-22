@@ -133,7 +133,9 @@ export const api = {
   getDeviceDetail: (deviceNum: number, days = 30) => fetchApi<any>(`/analytics/device/${deviceNum}/`, { days: String(days) }),
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),
   getSettings: () => fetchApi<any>("/settings/"),
-  getBlockedUsers: () => fetchApi<{ total: number; data: User[] }>("/users/blocked/"),
+  getBlockedUsers: (p: { page?: number; per_page?: number; search?: string } = {}) =>
+    fetchApi<PaginatedResponse<User>>("/users/blocked/",
+      Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
   bulkBlock: (names: string[], action: "block" | "unblock") =>
     postApi<any>("/users/bulk-block/", { names, action }),
   checkUserStatus: (name: string) => fetchApi<{

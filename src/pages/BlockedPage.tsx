@@ -364,34 +364,35 @@ export default function BlockedPage() {
     placeholderData: (prev) => prev,
   });
 
-  const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
+  // name bo'yicha pending — UsersManagement.id bo'lmagan userlar uchun ham ishlaydi
+  const [pendingNames, setPendingNames] = useState<Set<string>>(new Set());
 
   const unblockMut = useMutation({
-    mutationFn: (id: number) => api.unblockUser(id),
-    onMutate: async (id: number) => {
+    mutationFn: (name: string) => api.bulkBlock([name], "unblock"),
+    onMutate: async (name: string) => {
       await qc.cancelQueries({ queryKey: ["blockedUsers"] });
       const prev = qc.getQueryData<{ total: number; page: number; per_page: number; total_pages: number; data: User[] }>(queryKey);
       if (prev) {
         qc.setQueryData(queryKey, {
           ...prev,
           total: Math.max(0, prev.total - 1),
-          data: prev.data.filter((u) => u.id !== id),
+          data: prev.data.filter((u) => u.name !== name),
         });
       }
-      setPendingIds((s) => new Set(s).add(id));
+      setPendingNames((s) => new Set(s).add(name));
       return { prev };
     },
-    onError: (_err, _id, ctx) => {
+    onError: (_err, _name, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
       toast.error("Xatolik — qaytadan urinib ko'ring");
     },
-    onSuccess: (d: any) => {
-      toast.success(d.message);
+    onSuccess: (_d, name) => {
+      toast.success(`${name} barcha turniketlardan blokdan chiqarildi`);
     },
-    onSettled: (_d, _e, id) => {
-      setPendingIds((s) => {
+    onSettled: (_d, _e, name) => {
+      setPendingNames((s) => {
         const n = new Set(s);
-        n.delete(id);
+        n.delete(name);
         return n;
       });
       qc.invalidateQueries({ queryKey: ["blockedUsers"] });
@@ -551,10 +552,11 @@ export default function BlockedPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <button onClick={() => u.id && unblockMut.mutate(u.id)}
-                      disabled={!u.id || pendingIds.has(u.id)}
-                      className="h-8 px-3 rounded-lg text-[11px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-1.5">
-                      {u.id && pendingIds.has(u.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                    <button onClick={() => unblockMut.mutate(u.name)}
+                      disabled={!u.name || pendingNames.has(u.name)}
+                      className="h-8 px-3 rounded-lg text-[11px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-1.5"
+                      title="Barcha 8 turniketdan blokdan chiqarish">
+                      {pendingNames.has(u.name) ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
                       Blokdan chiqarish
                     </button>
                   </td>

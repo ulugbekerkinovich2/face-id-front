@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -16,15 +16,15 @@ import {
   LogOut,
 } from "lucide-react";
 
-const NAV = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", group: "Asosiy" },
-  { to: "/devices", icon: Router, label: "Qurilmalar", group: "Asosiy" },
-  { to: "/logs", icon: ScrollText, label: "Loglar", group: "Ma'lumotlar" },
-  { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar" },
-  { to: "/blocked", icon: ShieldBan, label: "Bloklangan", group: "Ma'lumotlar" },
-  { to: "/strangers", icon: Ghost, label: "Notanishlar", group: "Ma'lumotlar" },
-  { to: "/analytics", icon: BarChart3, label: "Statistika", group: "Tahlil" },
-  { to: "/settings", icon: Settings, label: "Sozlamalar", group: "Tahlil" },
+const ALL_NAV = [
+  { to: "/", icon: LayoutDashboard, label: "Dashboard", group: "Asosiy", roles: ["admin"] },
+  { to: "/devices", icon: Router, label: "Qurilmalar", group: "Asosiy", roles: ["admin"] },
+  { to: "/logs", icon: ScrollText, label: "Loglar", group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/blocked", icon: ShieldBan, label: "Bloklangan", group: "Ma'lumotlar", roles: ["admin", "user"] },
+  { to: "/strangers", icon: Ghost, label: "Notanishlar", group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/analytics", icon: BarChart3, label: "Statistika", group: "Tahlil", roles: ["admin"] },
+  { to: "/settings", icon: Settings, label: "Sozlamalar", group: "Tahlil", roles: ["admin"] },
 ] as const;
 
 export default function Layout() {
@@ -33,6 +33,21 @@ export default function Layout() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
+  const NAV = ALL_NAV.filter((n) => !user || n.roles.includes(user.role as any));
+  const allowedPaths = NAV.map((n) => n.to);
+
+  // "user" rolega ruxsat berilmagan sahifaga kirsa — Bloklangan sahifaga yo'naltirish
+  useEffect(() => {
+    if (!user) return;
+    const path = location.pathname;
+    const isAllowed = allowedPaths.some((p) =>
+      p === "/" ? path === "/" : path === p || path.startsWith(p + "/")
+    );
+    if (!isAllowed) {
+      navigate("/blocked", { replace: true });
+    }
+  }, [user, location.pathname, allowedPaths, navigate]);
+
   const handleLogout = async () => {
     await signOut();
     navigate("/login", { replace: true });
@@ -40,7 +55,7 @@ export default function Layout() {
 
   const pageTitle =
     NAV.find((n) => (n.to === "/" ? location.pathname === "/" : location.pathname.startsWith(n.to)))
-      ?.label ?? "Dashboard";
+      ?.label ?? "";
 
   return (
     <div className="min-h-screen bg-background flex">

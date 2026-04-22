@@ -23,6 +23,8 @@ export default function SettingsPage() {
     queryFn: () => api.getStorageStats(),
     staleTime: 60_000,
     refetchOnMount: true,
+    // Backend "computing: true" qaytarsa — har 5 sek qayta so'rash
+    refetchInterval: (query) => (query.state.data?.computing ? 5000 : false),
   });
 
   return (
@@ -44,7 +46,12 @@ export default function SettingsPage() {
               <p className="text-[11px] text-muted-foreground">{info?.r2?.total_accounts ?? 0} ta account ulangan</p>
             </div>
           </div>
-          {storage && (
+          {storage?.computing ? (
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              Hisoblanmoqda...
+            </div>
+          ) : storage && (
             <div className="text-right">
               <p className="text-lg font-extrabold tabular-nums">{storage.total_size_gb} GB</p>
               <p className="text-[10px] text-muted-foreground">/ {storage.total_max_gb} GB jami</p>

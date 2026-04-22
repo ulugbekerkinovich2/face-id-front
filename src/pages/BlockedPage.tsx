@@ -159,7 +159,7 @@ function AddBlockModal({ open, onClose }: { open: boolean; onClose: () => void }
   });
 
   if (!open) return null;
-  const results = (data?.data ?? []).filter((u: User) => !(u.extra_info || "").startsWith("BLOCKED|"));
+  const results = (data?.data ?? []).filter((u: User) => !u.is_blocked);
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>

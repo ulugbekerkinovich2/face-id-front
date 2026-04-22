@@ -7,7 +7,7 @@ import { LogIn, Shield } from 'lucide-react';
 
 const Login = () => {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(username, password);
     if (error) setError(error.message);
     setLoading(false);
   };
@@ -40,13 +40,14 @@ const Login = () => {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="username">Login</Label>
             <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+              autoComplete="username"
               required
             />
           </div>

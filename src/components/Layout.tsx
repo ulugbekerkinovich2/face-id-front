@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   LayoutDashboard,
   Router,
@@ -12,6 +13,7 @@ import {
   Ghost,
   Settings,
   ShieldBan,
+  LogOut,
 } from "lucide-react";
 
 const NAV = [
@@ -28,6 +30,13 @@ const NAV = [
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   const pageTitle =
     NAV.find((n) => (n.to === "/" ? location.pathname === "/" : location.pathname.startsWith(n.to)))
@@ -154,6 +163,22 @@ export default function Layout() {
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" />
               Live
             </div>
+            {user && (
+              <>
+                <span className="hidden sm:inline text-xs text-muted-foreground px-2">
+                  {user.username}
+                  <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold uppercase">
+                    {user.role}
+                  </span>
+                </span>
+                <button onClick={handleLogout}
+                  className="h-8 px-3 rounded-lg text-xs font-semibold bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center gap-1.5"
+                  title="Chiqish">
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Chiqish</span>
+                </button>
+              </>
+            )}
           </div>
         </header>
 

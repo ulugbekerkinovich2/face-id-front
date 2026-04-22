@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
+import RequireAuth from "@/components/RequireAuth";
 
 // Lazy load - sahifa faqat ochilganda yuklanadi
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
@@ -15,6 +16,7 @@ const BlockedPage = lazy(() => import("@/pages/BlockedPage"));
 const StrangersPage = lazy(() => import("@/pages/StrangersPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const Login = lazy(() => import("@/pages/Login"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -43,7 +45,8 @@ const App = () => (
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route element={<Layout />}>
+            <Route path="/login" element={<Login />} />
+            <Route element={<RequireAuth><Layout /></RequireAuth>}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/devices" element={<DevicesPage />} />
               <Route path="/logs" element={<LogsPage />} />

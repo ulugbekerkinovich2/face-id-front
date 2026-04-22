@@ -95,6 +95,11 @@ export interface User {
   extra_info: string; image: string | null;
   time: string | null; role: string | null; full_name: string;
   is_blocked?: boolean;
+  // /api/users/blocked/ endpoint qo'shimcha maydonlari
+  device_states?: Record<string, "blocked" | "allowed" | "missing" | "unknown">;
+  blocked_devices?: number[];
+  allowed_devices?: number[];
+  missing_devices?: number[];
 }
 
 export interface UserDetail extends User {
@@ -148,7 +153,7 @@ export const api = {
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),
   getSettings: () => fetchApi<any>("/settings/"),
   getBlockedUsers: (p: { page?: number; per_page?: number; search?: string } = {}) =>
-    fetchApi<PaginatedResponse<User>>("/users/blocked/",
+    fetchApi<PaginatedResponse<User> & { all_devices?: number[] }>("/users/blocked/",
       Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
   bulkBlock: (names: string[], action: "block" | "unblock") =>
     postApi<any>("/users/bulk-block/", { names, action }),

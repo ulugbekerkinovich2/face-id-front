@@ -402,6 +402,7 @@ export default function BlockedPage() {
   const blocked = blockedData?.data ?? [];
   const total = blockedData?.total ?? 0;
   const totalPages = blockedData?.total_pages ?? 1;
+  const allDevices = (blockedData?.all_devices ?? []) as number[];
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -458,6 +459,20 @@ export default function BlockedPage() {
         </button>
       </div>
 
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground animate-in" style={{ animationDelay: "75ms" }}>
+        <span className="font-semibold">Qurilma holati:</span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-rose-500 border border-rose-600" /> Bloklangan
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200" /> Ruxsat
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded bg-muted border border-border/60" /> Yo'q
+        </span>
+      </div>
+
       {/* Table */}
       <div className="bg-white rounded-xl border border-border/50 overflow-hidden animate-in" style={{ animationDelay: "100ms" }}>
         {isLoading ? (
@@ -473,15 +488,15 @@ export default function BlockedPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border/40 bg-rose-50/30">
-                {["#", "Foydalanuvchi", "Lavozim", "Qurilma", "Amal"].map((h) => (
+                {["#", "Foydalanuvchi", "Lavozim", "Qurilmalar", "Amal"].map((h) => (
                   <th key={h} className="text-left text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {blocked.map((u, i) => (
-                <tr key={u.id} className="border-b border-border/15 hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
+                <tr key={u.id ?? u.name} className="border-b border-border/15 hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{(page - 1) * perPage + i + 1}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {u.image ? (
@@ -500,11 +515,34 @@ export default function BlockedPage() {
                   <td className="px-4 py-3">
                     {u.role ? <span className="text-[11px] bg-primary/8 text-primary px-2 py-0.5 rounded-full font-medium">{u.role}</span> : "—"}
                   </td>
-                  <td className="px-4 py-3 text-[12px] text-muted-foreground font-mono">{u.face_id || "—"}</td>
                   <td className="px-4 py-3">
-                    <button onClick={() => unblockMut.mutate(u.id)} disabled={pendingIds.has(u.id)}
+                    <div className="flex flex-wrap gap-1">
+                      {allDevices.map((fid) => {
+                        const state = u.device_states?.[String(fid)] ?? "missing";
+                        const styles =
+                          state === "blocked" ? "bg-rose-500 text-white border-rose-600" :
+                          state === "allowed" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                          state === "missing" ? "bg-muted text-muted-foreground border-border/60" :
+                          "bg-amber-100 text-amber-700 border-amber-200";
+                        const title =
+                          state === "blocked" ? `${fid} — bloklangan (utype=1)` :
+                          state === "allowed" ? `${fid} — ruxsat etilgan (utype=0)` :
+                          state === "missing" ? `${fid} — qurilmada yo'q` :
+                          `${fid} — noma'lum`;
+                        return (
+                          <span key={fid} title={title}
+                            className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${styles}`}>
+                            {String(fid).slice(-4)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => u.id && unblockMut.mutate(u.id)}
+                      disabled={!u.id || pendingIds.has(u.id)}
                       className="h-8 px-3 rounded-lg text-[11px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-1.5">
-                      {pendingIds.has(u.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
+                      {u.id && pendingIds.has(u.id) ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
                       Blokdan chiqarish
                     </button>
                   </td>

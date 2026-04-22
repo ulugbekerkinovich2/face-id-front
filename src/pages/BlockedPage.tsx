@@ -483,17 +483,17 @@ export default function BlockedPage() {
                 <tr key={u.id} className="border-b border-border/15 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-3">
                       {u.image ? (
-                        <img src={u.image} className="w-9 h-9 rounded-full object-cover border-2 border-rose-100 shadow-sm" loading="lazy" />
+                        <img src={u.image} className="w-16 h-16 rounded-xl object-cover border-2 border-rose-100 shadow-sm" loading="lazy" />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-rose-400 flex items-center justify-center text-[11px] font-bold text-white">
+                        <div className="w-16 h-16 rounded-xl bg-rose-400 flex items-center justify-center text-[20px] font-bold text-white">
                           {(u.name || "?")[0]}
                         </div>
                       )}
                       <div>
-                        <p className="text-[13px] font-semibold">{u.full_name || u.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{u.name}</p>
+                        <p className="text-[14px] font-semibold">{u.full_name || u.name}</p>
+                        <p className="text-[11px] text-muted-foreground font-mono">{u.name}</p>
                       </div>
                     </div>
                   </td>

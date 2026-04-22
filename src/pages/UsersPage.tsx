@@ -134,13 +134,9 @@ export default function UsersPage() {
                     <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums">{(page - 1) * 30 + i + 1}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2.5">
-                        {u.image ? (
-                          <img src={u.image} className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm" loading="lazy" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-[11px] font-bold text-white">
-                            {(u.name || "?")[0]}
-                          </div>
-                        )}
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-[11px] font-bold text-white">
+                          {(u.name || "?")[0]}
+                        </div>
                         <div className="min-w-0">
                           <p className="text-[13px] font-semibold truncate max-w-[220px]">{u.full_name || u.name}</p>
                           <p className="text-[10px] text-muted-foreground font-mono">{u.name}</p>

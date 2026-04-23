@@ -17,15 +17,24 @@ function BulkTextModal({ open, onClose, action }: { open: boolean; onClose: () =
       const names = text.split(/[\n,\s]+/).map(n => n.trim()).filter(Boolean);
       return api.bulkBlock(names, action);
     },
+    onMutate: () => {
+      const count = text.split(/[\n,\s]+/).filter(Boolean).length;
+      toast.loading(
+        action === "block"
+          ? `${count} ta user bloklanmoqda — 8 qurilma, biroz vaqt oladi...`
+          : `${count} ta user blokdan chiqarilmoqda — 8 qurilma, biroz vaqt oladi...`,
+        { id: "bulk-text" },
+      );
+    },
     onSuccess: (d: any) => {
       toast.success(`${d.success}/${d.total} user ${action === "block" ? "bloklandi" : "blokdan chiqarildi"}`,
-        { description: `Topilmadi: ${d.not_found}` });
+        { id: "bulk-text", description: `Topilmadi: ${d.not_found}` });
       qc.invalidateQueries({ queryKey: ["blockedUsers"] });
       qc.invalidateQueries({ queryKey: ["users"] });
       setText("");
       onClose();
     },
-    onError: () => toast.error("Xatolik"),
+    onError: () => toast.error("Xatolik", { id: "bulk-text" }),
   });
 
   if (!open) return null;
@@ -73,14 +82,25 @@ function ExcelImportModal({ open, onClose, action }: { open: boolean; onClose: (
       if (!file) throw new Error("Fayl tanlanmagan");
       return api.bulkBlockExcel(file, action);
     },
+    onMutate: () => {
+      toast.loading(
+        action === "block"
+          ? "Excel'dan userlar bloklanmoqda — 8 qurilma, biroz vaqt oladi..."
+          : "Excel'dan userlar blokdan chiqarilmoqda — 8 qurilma, biroz vaqt oladi...",
+        { id: "bulk-excel" },
+      );
+    },
     onSuccess: (d: any) => {
-      toast.success(`${d.success}/${d.total} user ishlandi`, { description: `Topilmadi: ${d.not_found}` });
+      toast.success(`${d.success}/${d.total} user ishlandi`, {
+        id: "bulk-excel",
+        description: `Topilmadi: ${d.not_found}`,
+      });
       qc.invalidateQueries({ queryKey: ["blockedUsers"] });
       qc.invalidateQueries({ queryKey: ["users"] });
       setFile(null);
       onClose();
     },
-    onError: () => toast.error("Excel import xatoligi"),
+    onError: () => toast.error("Excel import xatoligi", { id: "bulk-excel" }),
   });
 
   if (!open) return null;
@@ -151,11 +171,15 @@ function AddBlockModal({ open, onClose }: { open: boolean; onClose: () => void }
 
   const blockMut = useMutation({
     mutationFn: (id: number) => api.blockUser(id),
-    onSuccess: (d: any) => {
-      toast.success(d.message);
+    onMutate: (id) => {
+      toast.loading("Bloklanmoqda — 8 qurilma, biroz vaqt oladi...", { id: `block-${id}` });
+    },
+    onSuccess: (d: any, id) => {
+      toast.success(d.message, { id: `block-${id}` });
       qc.invalidateQueries({ queryKey: ["blockedUsers"] });
       qc.invalidateQueries({ queryKey: ["searchUsers"] });
     },
+    onError: (_e, id) => toast.error("Xatolik — qaytadan urinib ko'ring", { id: `block-${id}` }),
   });
 
   if (!open) return null;
@@ -226,11 +250,23 @@ function CheckUserModal({ open, onClose }: { open: boolean; onClose: () => void 
 
   const blockMut = useMutation({
     mutationFn: () => api.bulkBlock([checked], "block"),
-    onSuccess: () => { toast.success(`${checked} bloklandi`); refetch(); qc.invalidateQueries({ queryKey: ["blockedUsers"] }); },
+    onMutate: () => toast.loading(`${checked} bloklanmoqda — 8 qurilma, biroz vaqt oladi...`, { id: `check-${checked}` }),
+    onSuccess: () => {
+      toast.success(`${checked} bloklandi`, { id: `check-${checked}` });
+      refetch();
+      qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+    },
+    onError: () => toast.error("Xatolik — qaytadan urinib ko'ring", { id: `check-${checked}` }),
   });
   const unblockMut = useMutation({
     mutationFn: () => api.bulkBlock([checked], "unblock"),
-    onSuccess: () => { toast.success(`${checked} blokdan chiqarildi`); refetch(); qc.invalidateQueries({ queryKey: ["blockedUsers"] }); },
+    onMutate: () => toast.loading(`${checked} blokdan chiqarilmoqda — 8 qurilma, biroz vaqt oladi...`, { id: `check-${checked}` }),
+    onSuccess: () => {
+      toast.success(`${checked} blokdan chiqarildi`, { id: `check-${checked}` });
+      refetch();
+      qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+    },
+    onError: () => toast.error("Xatolik — qaytadan urinib ko'ring", { id: `check-${checked}` }),
   });
 
   if (!open) return null;
@@ -370,6 +406,7 @@ export default function BlockedPage() {
   const unblockMut = useMutation({
     mutationFn: (name: string) => api.bulkBlock([name], "unblock"),
     onMutate: async (name: string) => {
+      toast.loading(`${name} blokdan chiqarilmoqda — 8 qurilma, biroz vaqt oladi...`, { id: `unblock-${name}` });
       await qc.cancelQueries({ queryKey: ["blockedUsers"] });
       const prev = qc.getQueryData<{ total: number; page: number; per_page: number; total_pages: number; data: User[] }>(queryKey);
       if (prev) {
@@ -382,12 +419,12 @@ export default function BlockedPage() {
       setPendingNames((s) => new Set(s).add(name));
       return { prev };
     },
-    onError: (_err, _name, ctx) => {
+    onError: (_err, name, ctx) => {
       if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
-      toast.error("Xatolik — qaytadan urinib ko'ring");
+      toast.error("Xatolik — qaytadan urinib ko'ring", { id: `unblock-${name}` });
     },
     onSuccess: (_d, name) => {
-      toast.success(`${name} barcha turniketlardan blokdan chiqarildi`);
+      toast.success(`${name} barcha turniketlardan blokdan chiqarildi`, { id: `unblock-${name}` });
     },
     onSettled: (_d, _e, name) => {
       setPendingNames((s) => {

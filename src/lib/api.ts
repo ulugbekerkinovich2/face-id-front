@@ -90,9 +90,9 @@ export interface TopUser {
 }
 
 export interface User {
-  id: number; face_id: number | null; uid: number;
-  name: string; gender: string; rf_id_card_num: number | null;
-  extra_info: string; image: string | null;
+  id: number | null; face_id: number | null; uid: number | null;
+  name: string; gender: string | null; rf_id_card_num?: number | null;
+  extra_info?: string; image: string | null;
   time: string | null; role: string | null; full_name: string;
   is_blocked?: boolean;
   // /api/users/blocked/ endpoint qo'shimcha maydonlari
@@ -100,6 +100,19 @@ export interface User {
   blocked_devices?: number[];
   allowed_devices?: number[];
   missing_devices?: number[];
+}
+
+export interface BlockResponse {
+  status: string;
+  message: string;
+  blocked: boolean;
+  devices_total: number;
+  devices_ok: number;
+  scope: "all" | "selected";
+  details: Array<{ device: string; ip: string; status: string; action: string }>;
+  unknown_devices?: number[];
+  name?: string;
+  db_user_id?: number | null;
 }
 
 export interface UserDetail extends User {
@@ -135,8 +148,14 @@ export const api = {
   addUser: (data: { name: string; gender: number; extra_info?: string; rf_id_card?: number }) =>
     postApi<{ status: string; user_id: number; message: string }>("/users/add/", data),
   deleteUser: (id: number) => deleteApi<{ status: string }>(`/users/${id}/`),
-  blockUser: (id: number) => postApi<{ status: string; blocked: boolean }>(`/users/${id}/block/`, { action: "block" }),
-  unblockUser: (id: number) => postApi<{ status: string; blocked: boolean }>(`/users/${id}/block/`, { action: "unblock" }),
+  blockUser: (id: number, opts: { device_id?: number; device_ids?: number[] } = {}) =>
+    postApi<BlockResponse>(`/users/${id}/block/`, { action: "block", ...opts }),
+  unblockUser: (id: number, opts: { device_id?: number; device_ids?: number[] } = {}) =>
+    postApi<BlockResponse>(`/users/${id}/block/`, { action: "unblock", ...opts }),
+  blockByName: (name: string, opts: { device_id?: number; device_ids?: number[] } = {}) =>
+    postApi<BlockResponse>("/users/block-by-name/", { name, action: "block", ...opts }),
+  unblockByName: (name: string, opts: { device_id?: number; device_ids?: number[] } = {}) =>
+    postApi<BlockResponse>("/users/block-by-name/", { name, action: "unblock", ...opts }),
 
   // Strangers
   getStrangers: (p: { page?: number; per_page?: number; date?: string; device?: string }) =>

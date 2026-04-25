@@ -402,6 +402,8 @@ export default function BlockedPage() {
 
   // name bo'yicha pending — UsersManagement.id bo'lmagan userlar uchun ham ishlaydi
   const [pendingNames, setPendingNames] = useState<Set<string>>(new Set());
+  // per-device pending: "name|deviceId"
+  const [pendingDevices, setPendingDevices] = useState<Set<string>>(new Set());
 
   const unblockMut = useMutation({
     mutationFn: (name: string) => api.bulkBlock([name], "unblock"),
@@ -436,6 +438,36 @@ export default function BlockedPage() {
       qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
+
+  // Per-device toggle: bitta qurilmada block <-> unblock
+  const togglePerDevice = (name: string, deviceId: number, action: "block" | "unblock") => {
+    const key = `${name}|${deviceId}`;
+    if (pendingDevices.has(key)) return;
+    setPendingDevices((s) => new Set(s).add(key));
+    const verb = action === "block" ? "bloklanmoqda" : "blokdan chiqarilmoqda";
+    toast.loading(`${name} #${deviceId} ${verb}...`, { id: `dev-${key}` });
+    const call = action === "block"
+      ? api.blockByName(name, { device_id: deviceId })
+      : api.unblockByName(name, { device_id: deviceId });
+    call
+      .then((r) => {
+        if (r.devices_ok > 0) {
+          toast.success(`${name} #${deviceId} ${action === "block" ? "bloklandi" : "blokdan chiqarildi"}`,
+            { id: `dev-${key}` });
+        } else {
+          toast.error(`${name} #${deviceId} — qurilmada bajarilmadi`, { id: `dev-${key}` });
+        }
+        qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+      })
+      .catch(() => toast.error("Xatolik — qaytadan urinib ko'ring", { id: `dev-${key}` }))
+      .finally(() => {
+        setPendingDevices((s) => {
+          const n = new Set(s);
+          n.delete(key);
+          return n;
+        });
+      });
+  };
 
   const blocked = blockedData?.data ?? [];
   const total = blockedData?.total ?? 0;
@@ -567,20 +599,29 @@ export default function BlockedPage() {
                           <div className="flex flex-wrap gap-1">
                             {row.devices.map((fid) => {
                               const state = u.device_states?.[String(fid)] ?? "missing";
+                              const pendKey = `${u.name}|${fid}`;
+                              const isPending = pendingDevices.has(pendKey);
                               const styles =
-                                state === "blocked" ? "bg-rose-500 text-white border-rose-600" :
-                                state === "allowed" ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                                state === "missing" ? "bg-muted text-muted-foreground border-border/60" :
+                                state === "blocked" ? "bg-rose-500 text-white border-rose-600 hover:bg-rose-600" :
+                                state === "allowed" ? "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200" :
+                                state === "missing" ? "bg-muted text-muted-foreground border-border/60 cursor-not-allowed" :
                                 "bg-amber-100 text-amber-700 border-amber-200";
                               const stateLabel =
-                                state === "blocked" ? "bloklangan" :
-                                state === "allowed" ? "ruxsat" :
+                                state === "blocked" ? "bloklangan — bosing blokdan chiqarish uchun" :
+                                state === "allowed" ? "ruxsat — bosing bloklash uchun" :
                                 state === "missing" ? "qurilmada yo'q" : "noma'lum";
+                              const disabled = state === "missing" || state === "unknown" || isPending || !u.name;
+                              const next: "block" | "unblock" = state === "blocked" ? "unblock" : "block";
                               return (
-                                <span key={fid} title={`${fid} (${row.label}) — ${stateLabel}`}
-                                  className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border ${styles}`}>
-                                  {String(fid).slice(-4)}
-                                </span>
+                                <button
+                                  key={fid}
+                                  title={`${fid} (${row.label}) — ${stateLabel}`}
+                                  disabled={disabled}
+                                  onClick={() => togglePerDevice(u.name, fid, next)}
+                                  className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${styles}`}
+                                >
+                                  {isPending ? <Loader2 className="w-2.5 h-2.5 animate-spin inline" /> : String(fid).slice(-4)}
+                                </button>
                               );
                             })}
                           </div>

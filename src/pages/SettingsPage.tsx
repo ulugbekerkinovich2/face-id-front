@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { api, MigrationJob } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   HardDrive, Database, Router, Cpu,
   Wifi, CheckCircle, AlertTriangle, ArrowRight,
-  Loader2, MoveRight, RefreshCw,
+  Loader2, MoveRight, RefreshCw, Copy, Trash2,
+  XCircle, Clock, Zap, FileCheck2,
 } from "lucide-react";
 
 const ACCOUNT_LABELS: Record<string, string> = {
@@ -15,13 +16,21 @@ const ACCOUNT_LABELS: Record<string, string> = {
   backup2: "Account 3 (backup2)",
 };
 
+function fmtDuration(secs: number) {
+  if (secs < 60) return `${Math.round(secs)}s`;
+  const m = Math.floor(secs / 60), s = Math.round(secs % 60);
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
 function MigrationSection({ accountNames }: { accountNames: string[] }) {
   const queryClient = useQueryClient();
   const [source, setSource] = useState("");
   const [dest, setDest] = useState("");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const startedAtRef = useRef<number | null>(null);
+  const [elapsed, setElapsed] = useState(0);
 
-  const { data: jobData, refetch: refetchJob } = useQuery({
+  const { data: jobData } = useQuery({
     queryKey: ["migration-status", activeJobId],
     queryFn: () => api.getMigrationStatus(activeJobId!),
     enabled: !!activeJobId,
@@ -37,6 +46,20 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     staleTime: 10_000,
   });
 
+  // Elapsed timer
+  useEffect(() => {
+    const isRunning = jobData?.status === "running" || jobData?.status === "listing" || jobData?.status === "queued";
+    if (isRunning) {
+      if (!startedAtRef.current) startedAtRef.current = Date.now();
+      const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current!) / 1000)), 1000);
+      return () => clearInterval(id);
+    } else {
+      if (jobData?.status === "done" || jobData?.status === "partial" || jobData?.status === "error") {
+        startedAtRef.current = null;
+      }
+    }
+  }, [jobData?.status]);
+
   useEffect(() => {
     if (jobData?.status === "done" || jobData?.status === "partial") {
       queryClient.invalidateQueries({ queryKey: ["storage"] });
@@ -48,21 +71,31 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     mutationFn: () => api.startMigration(source, dest),
     onSuccess: (res) => {
       setActiveJobId(res.job_id);
+      startedAtRef.current = Date.now();
+      setElapsed(0);
       queryClient.invalidateQueries({ queryKey: ["migration-list"] });
     },
   });
 
   const isRunning = jobData?.status === "running" || jobData?.status === "listing" || jobData?.status === "queued";
   const pct = jobData && jobData.total > 0 ? Math.round((jobData.copied / jobData.total) * 100) : 0;
+  const speed = elapsed > 0 && jobData ? jobData.copied / elapsed : 0; // files/sec
+  const eta = speed > 0 && jobData ? (jobData.total - jobData.copied) / speed : null;
 
   const statusColor: Record<string, string> = {
     done: "text-emerald-600", partial: "text-amber-600",
     error: "text-rose-600", running: "text-blue-600",
     listing: "text-blue-500", queued: "text-muted-foreground",
   };
+  const statusBg: Record<string, string> = {
+    done: "bg-emerald-500", partial: "bg-amber-500",
+    error: "bg-rose-500", running: "bg-violet-500",
+    listing: "bg-blue-400", queued: "bg-slate-300",
+  };
   const statusLabel: Record<string, string> = {
-    done: "Bajarildi", partial: "Qisman bajarildi", error: "Xato",
-    running: "Ishlamoqda...", listing: "Fayllar sanalimoqda...", queued: "Navbatda...",
+    done: "✓ Muvaffaqiyatli ko'chirildi", partial: "⚠ Qisman bajarildi",
+    error: "✗ Xato yuz berdi", running: "Ko'chirilmoqda...",
+    listing: "Fayllar sanalimoqda...", queued: "Navbatda...",
   };
 
   return (
@@ -114,41 +147,147 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
         </button>
       </div>
 
-      {/* Active job progress */}
+      {/* Active job — detailed progress */}
       {activeJobId && jobData && (
-        <div className="bg-muted/30 rounded-xl p-4 mb-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className={`text-[13px] font-bold ${statusColor[jobData.status] ?? ""}`}>
-              {statusLabel[jobData.status] ?? jobData.status}
+        <div className={`rounded-xl border mb-4 overflow-hidden ${
+          jobData.status === "done" ? "border-emerald-200 bg-emerald-50/30"
+          : jobData.status === "error" ? "border-rose-200 bg-rose-50/30"
+          : jobData.status === "partial" ? "border-amber-200 bg-amber-50/30"
+          : "border-violet-200 bg-violet-50/20"
+        }`}>
+          {/* Header bar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-inherit">
+            <div className="flex items-center gap-2">
+              {isRunning && <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-600" />}
+              <span className={`text-[13px] font-bold ${statusColor[jobData.status] ?? ""}`}>
+                {statusLabel[jobData.status] ?? jobData.status}
+              </span>
+            </div>
+            <span className="text-[11px] text-muted-foreground font-mono">
+              {ACCOUNT_LABELS[jobData.source] ?? jobData.source}
+              <ArrowRight className="inline w-3 h-3 mx-1" />
+              {ACCOUNT_LABELS[jobData.dest] ?? jobData.dest}
             </span>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground tabular-nums">
-              <span>{jobData.copied} / {jobData.total} fayl</span>
-              {isRunning && <RefreshCw className="w-3 h-3 animate-spin" />}
+          </div>
+
+          {/* Progress bar */}
+          {(jobData.total > 0 || isRunning) && (
+            <div className="px-4 pt-3 pb-1">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="font-semibold tabular-nums">
+                  {jobData.copied.toLocaleString()} / {jobData.total.toLocaleString()} fayl
+                </span>
+                <span className="font-bold tabular-nums">{pct}%</span>
+              </div>
+              <div className="w-full h-4 rounded-full bg-slate-100 overflow-hidden relative">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${statusBg[jobData.status] ?? "bg-slate-400"} ${isRunning ? "animate-pulse" : ""}`}
+                  style={{ width: `${pct}%` }}
+                />
+                {/* Striped animation overlay while running */}
+                {isRunning && pct > 0 && (
+                  <div
+                    className="absolute inset-0 rounded-full opacity-20"
+                    style={{
+                      width: `${pct}%`,
+                      background: "repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.5) 8px, rgba(255,255,255,0.5) 16px)",
+                      backgroundSize: "32px 32px",
+                      animation: "slide 1s linear infinite",
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-4 gap-0 divide-x divide-border/30 px-4 py-3">
+            <div className="pr-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <FileCheck2 className="w-3 h-3 text-emerald-500" />
+                <span className="text-[10px] text-muted-foreground font-medium">Ko'chirildi</span>
+              </div>
+              <p className="text-[15px] font-extrabold tabular-nums text-emerald-600">{jobData.copied.toLocaleString()}</p>
+            </div>
+            <div className="px-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <Copy className="w-3 h-3 text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground font-medium">Qoldi</span>
+              </div>
+              <p className="text-[15px] font-extrabold tabular-nums text-foreground">
+                {Math.max(0, jobData.total - jobData.copied).toLocaleString()}
+              </p>
+            </div>
+            <div className="px-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <XCircle className="w-3 h-3 text-rose-400" />
+                <span className="text-[10px] text-muted-foreground font-medium">Xato</span>
+              </div>
+              <p className={`text-[15px] font-extrabold tabular-nums ${jobData.failed > 0 ? "text-rose-600" : "text-muted-foreground/40"}`}>
+                {jobData.failed}
+              </p>
+            </div>
+            <div className="pl-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <Trash2 className="w-3 h-3 text-slate-400" />
+                <span className="text-[10px] text-muted-foreground font-medium">O'chirildi</span>
+              </div>
+              <p className="text-[15px] font-extrabold tabular-nums text-slate-500">{jobData.deleted}</p>
             </div>
           </div>
-          {jobData.total > 0 && (
-            <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  jobData.status === "error" ? "bg-rose-500"
-                  : jobData.status === "done" ? "bg-emerald-500"
-                  : "bg-violet-500"
-                }`}
-                style={{ width: `${pct}%` }}
-              />
+
+          {/* Speed / ETA / Elapsed */}
+          {isRunning && elapsed > 0 && (
+            <div className="flex items-center gap-4 px-4 pb-3 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Zap className="w-3 h-3 text-violet-500" />
+                <span className="tabular-nums font-medium">
+                  {speed >= 1 ? `${speed.toFixed(1)} fayl/s` : `${(speed * 60).toFixed(1)} fayl/min`}
+                </span>
+              </div>
+              {eta !== null && eta > 0 && (
+                <div className="flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-blue-400" />
+                  <span className="tabular-nums">ETA: {fmtDuration(eta)}</span>
+                </div>
+              )}
+              <div className="ml-auto flex items-center gap-1">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span className="tabular-nums">{fmtDuration(elapsed)} o'tdi</span>
+              </div>
             </div>
           )}
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{ACCOUNT_LABELS[jobData.source] ?? jobData.source} → {ACCOUNT_LABELS[jobData.dest] ?? jobData.dest}</span>
-            <span>{pct}%</span>
-          </div>
-          {jobData.failed > 0 && (
-            <p className="text-[11px] text-rose-600 font-medium">{jobData.failed} ta fayl xato</p>
+
+          {/* Done summary */}
+          {(jobData.status === "done" || jobData.status === "partial") && elapsed > 0 && (
+            <div className="flex items-center gap-2 px-4 pb-3 text-[11px] text-muted-foreground">
+              <Clock className="w-3 h-3" />
+              <span>Davomiyligi: {fmtDuration(elapsed)}</span>
+              {speed > 0 && <span>· O'rtacha: {speed.toFixed(1)} fayl/s</span>}
+            </div>
           )}
-          {jobData.status === "done" && jobData.deleted > 0 && (
-            <p className="text-[11px] text-emerald-600 font-medium">✓ {jobData.deleted} ta fayl sourcdan o'chirildi</p>
+
+          {/* Error list */}
+          {(jobData.errors ?? []).length > 0 && (
+            <div className="px-4 pb-3">
+              <p className="text-[10px] font-bold text-rose-600 mb-1.5 uppercase tracking-wider">Xatolar ({jobData.errors!.length})</p>
+              <div className="space-y-1 max-h-24 overflow-y-auto">
+                {jobData.errors!.map((e, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-[10px]">
+                    <XCircle className="w-3 h-3 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-rose-700 font-mono break-all">{e.key}</span>
+                    <span className="text-muted-foreground ml-auto flex-shrink-0">{e.error}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-          {jobData.error && <p className="text-[11px] text-rose-600">{jobData.error}</p>}
+
+          {jobData.error && (
+            <div className="px-4 pb-3">
+              <p className="text-[11px] text-rose-600 font-medium">{jobData.error}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -157,21 +296,39 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
         <div>
           <p className="text-[11px] font-semibold text-muted-foreground mb-2 uppercase tracking-wider">So'nggi migratsiyalar</p>
           <div className="space-y-1.5">
-            {(historyData?.jobs ?? []).slice(0, 5).map((j) => (
-              <div
-                key={j.job_id}
-                onClick={() => setActiveJobId(j.job_id)}
-                className="flex items-center justify-between text-[11px] px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-              >
-                <span className="text-muted-foreground">
-                  {ACCOUNT_LABELS[j.source] ?? j.source} → {ACCOUNT_LABELS[j.dest] ?? j.dest}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="tabular-nums text-muted-foreground">{j.total} fayl</span>
-                  <span className={`font-semibold ${statusColor[j.status] ?? ""}`}>{statusLabel[j.status] ?? j.status}</span>
+            {(historyData?.jobs ?? []).slice(0, 5).map((j) => {
+              const isActive = j.job_id === activeJobId;
+              return (
+                <div
+                  key={j.job_id}
+                  onClick={() => setActiveJobId(j.job_id)}
+                  className={`flex items-center justify-between text-[11px] px-3 py-2.5 rounded-lg cursor-pointer transition-colors border ${
+                    isActive ? "border-violet-200 bg-violet-50/40" : "border-transparent bg-muted/30 hover:bg-muted/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusBg[j.status] ?? "bg-slate-300"}`} />
+                    <span className="text-muted-foreground">
+                      {ACCOUNT_LABELS[j.source] ?? j.source}
+                      <ArrowRight className="inline w-2.5 h-2.5 mx-1" />
+                      {ACCOUNT_LABELS[j.dest] ?? j.dest}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {j.total > 0 && (
+                      <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${statusBg[j.status] ?? "bg-slate-300"}`}
+                          style={{ width: `${j.total > 0 ? Math.round((j.copied / j.total) * 100) : 0}%` }}
+                        />
+                      </div>
+                    )}
+                    <span className="tabular-nums text-muted-foreground w-14 text-right">{j.total.toLocaleString()} fayl</span>
+                    <span className={`font-semibold w-20 text-right ${statusColor[j.status] ?? ""}`}>{statusLabel[j.status]?.replace(/[✓⚠✗] /, "") ?? j.status}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

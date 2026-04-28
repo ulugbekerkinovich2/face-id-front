@@ -457,7 +457,7 @@ R2_BACKUP3_BUCKET_NAME=bucket-name`}
       </div>
 
       {/* Migration */}
-      <MigrationSection accountNames={(storage?.accounts ?? info?.r2?.accounts ?? []).map((a: any) => a.name).filter(Boolean)} />
+      <MigrationSection accountNames={(storage?.accounts ?? info?.r2?.accounts ?? []).map((a: any) => a.account_key || a.name).filter(Boolean)} />
 
       {/* Devices */}
       <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "100ms" }}>

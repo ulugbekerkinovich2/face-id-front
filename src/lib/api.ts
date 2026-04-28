@@ -256,6 +256,7 @@ export const api = {
   getStrangerStats: () => fetchApi<any>("/analytics/strangers/"),
   getDeviceDetail: (deviceNum: number, days = 30) => fetchApi<any>(`/analytics/device/${deviceNum}/`, { days: String(days) }),
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),
+  refreshStorageStats: () => fetchApi<any>("/analytics/storage/", { refresh: "1" }),
   getSettings: () => fetchApi<any>("/settings/"),
   getBlockedUsers: (p: { page?: number; per_page?: number; search?: string } = {}) =>
     fetchApi<PaginatedResponse<User> & {

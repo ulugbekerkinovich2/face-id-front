@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,7 +9,7 @@ import {
 } from "recharts";
 import {
   Database, ScrollText, Heart, Ghost, Users, ShieldCheck,
-  Calendar, TrendingUp, Activity, Clock, Wifi,
+  Calendar, TrendingUp, Activity, Clock, Wifi, RefreshCw,
 } from "lucide-react";
 
 function Num({ value }: { value: number }) {
@@ -33,6 +34,26 @@ const TT = ({ active, payload, label }: any) => {
 };
 
 export default function AnalyticsPage() {
+  const queryClient = useQueryClient();
+  const [storageRefreshing, setStorageRefreshing] = useState(false);
+
+  const handleStorageRefresh = async () => {
+    setStorageRefreshing(true);
+    try {
+      await api.refreshStorageStats();
+      // Poll until computing=false (backend triggers async task)
+      const poll = async () => {
+        const data = await api.getStorageStats();
+        queryClient.setQueryData(["storage"], data);
+        if (data?.computing) setTimeout(poll, 5000);
+        else setStorageRefreshing(false);
+      };
+      setTimeout(poll, 3000);
+    } catch {
+      setStorageRefreshing(false);
+    }
+  };
+
   const { data: full } = useQuery({ queryKey: ["fullStats"], queryFn: api.getFullStats, staleTime: 600_000 });
   const { data: monthly } = useQuery({ queryKey: ["monthlyChart"], queryFn: api.getMonthlyChart, staleTime: 600_000, enabled: !!full });
   const { data: weekly } = useQuery({ queryKey: ["weeklyChart"], queryFn: () => api.getWeeklyChart(12), staleTime: 600_000, enabled: !!full });
@@ -282,6 +303,14 @@ export default function AnalyticsPage() {
                 <Database className="w-4 h-4 text-blue-500" />
                 <h3 className="text-[15px] font-bold">R2 Cloud Storage</h3>
                 <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">10 daqiqada yangilanadi</span>
+                <button
+                  onClick={handleStorageRefresh}
+                  disabled={storageRefreshing}
+                  title="Hozir hisoblash"
+                  className="ml-1 w-6 h-6 flex items-center justify-center rounded-md hover:bg-muted/60 disabled:opacity-40 transition-colors"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-muted-foreground ${storageRefreshing ? "animate-spin" : ""}`} />
+                </button>
               </div>
               <p className="text-[11px] text-muted-foreground ml-6">
                 {storage.total_files?.toLocaleString()} ta fayl · Egress bepul (Cloudflare R2)

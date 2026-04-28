@@ -24,8 +24,8 @@ export default function InsidePage() {
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["inside"],
     queryFn: api.getInsideNow,
-    refetchInterval: 20_000,
-    staleTime: 10_000,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   const count = data?.count ?? 0;
@@ -82,7 +82,7 @@ export default function InsidePage() {
             <Users className="w-9 h-9 text-muted-foreground/20" />
           </div>
           <p className="text-base font-semibold text-muted-foreground/60">Hozir hech kim ichkarida emas</p>
-          <p className="text-sm text-muted-foreground/40 mt-1">Yangilanish har 20 soniyada</p>
+          <p className="text-sm text-muted-foreground/40 mt-1">Yangilanish har 60 soniyada</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">

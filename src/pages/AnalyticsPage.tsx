@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend,
@@ -41,12 +42,44 @@ export default function AnalyticsPage() {
   const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats, staleTime: 600_000, enabled: !!full });
   const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 3600_000, enabled: !!full });
 
+  const PIE_COLORS = ["#10b981", "#f43f5e"];
+
+  if (!full) {
+    return (
+      <div className="p-5 lg:p-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64 rounded-xl mb-2" />
+          <Skeleton className="h-4 w-48 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[110px] rounded-2xl" />)}
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <Skeleton className="h-[220px] rounded-2xl" />
+          <Skeleton className="h-[220px] rounded-2xl" />
+        </div>
+        <Skeleton className="h-[380px] rounded-2xl" />
+        <div className="grid lg:grid-cols-2 gap-5">
+          <Skeleton className="h-[340px] rounded-2xl" />
+          <Skeleton className="h-[340px] rounded-2xl" />
+        </div>
+        <Skeleton className="h-[300px] rounded-2xl" />
+        <div className="grid lg:grid-cols-2 gap-5">
+          <Skeleton className="h-[400px] rounded-2xl" />
+          <Skeleton className="h-[400px] rounded-2xl" />
+        </div>
+        <Skeleton className="h-[300px] rounded-2xl" />
+      </div>
+    );
+  }
+
   const a = full?.all_time ?? {};
   const t = full?.today ?? {};
   const w = full?.week ?? {};
   const m = full?.month ?? {};
-
-  const PIE_COLORS = ["#10b981", "#f43f5e"];
 
   return (
     <div className="p-5 lg:p-6 space-y-6">
@@ -162,68 +195,80 @@ export default function AnalyticsPage() {
           <Calendar className="w-4 h-4 text-primary" />
           <h3 className="text-[15px] font-bold">Oylik trend (butun davr)</h3>
         </div>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={monthly?.data ?? []}>
-              <defs>
-                <linearGradient id="mE" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="mX" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="mS" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f97316" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={50} axisLine={false} tickLine={false} />
-              <Tooltip content={<TT />} />
-              <Area type="monotone" dataKey="entries" name="Kirish" stroke="#10b981" strokeWidth={2.5} fill="url(#mE)" dot={false} />
-              <Area type="monotone" dataKey="exits" name="Chiqish" stroke="#f43f5e" strokeWidth={2.5} fill="url(#mX)" dot={false} />
-              <Area type="monotone" dataKey="strangers" name="Notanish" stroke="#f97316" strokeWidth={2} fill="url(#mS)" dot={false} />
-              <Legend />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {!monthly ? (
+          <Skeleton className="h-[300px] rounded-xl" />
+        ) : (
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthly?.data ?? []}>
+                <defs>
+                  <linearGradient id="mE" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="mX" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#f43f5e" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="mS" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.15} />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={50} axisLine={false} tickLine={false} />
+                <Tooltip content={<TT />} />
+                <Area type="monotone" dataKey="entries" name="Kirish" stroke="#10b981" strokeWidth={2.5} fill="url(#mE)" dot={false} />
+                <Area type="monotone" dataKey="exits" name="Chiqish" stroke="#f43f5e" strokeWidth={2.5} fill="url(#mX)" dot={false} />
+                <Area type="monotone" dataKey="strangers" name="Notanish" stroke="#f97316" strokeWidth={2} fill="url(#mS)" dot={false} />
+                <Legend />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {/* ─── WEEKLY + HOURLY ─────────────────────────────── */}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "750ms" }}>
           <h3 className="text-[15px] font-bold mb-5">Haftalik trend (12 hafta)</h3>
-          <div className="h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weekly?.data ?? []} barGap={2} barSize={12}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="week" tickFormatter={(v) => v.slice(5)} tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={40} axisLine={false} tickLine={false} />
-                <Tooltip content={<TT />} />
-                <Bar dataKey="entries" name="Kirish" fill="#10b981" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="exits" name="Chiqish" fill="#f43f5e" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {!weekly ? (
+            <Skeleton className="h-[260px] rounded-xl" />
+          ) : (
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weekly?.data ?? []} barGap={2} barSize={12}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="week" tickFormatter={(v) => v.slice(5)} tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={40} axisLine={false} tickLine={false} />
+                  <Tooltip content={<TT />} />
+                  <Bar dataKey="entries" name="Kirish" fill="#10b981" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="exits" name="Chiqish" fill="#f43f5e" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "800ms" }}>
           <h3 className="text-[15px] font-bold mb-5">Bugungi soatlik taqsimot</h3>
-          <div className="h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={hourly?.data ?? []} barGap={2} barSize={14}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={30} axisLine={false} tickLine={false} />
-                <Tooltip content={<TT />} />
-                <Bar dataKey="entries" name="Kirish" fill="#10b981" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="exits" name="Chiqish" fill="#f43f5e" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {!hourly ? (
+            <Skeleton className="h-[260px] rounded-xl" />
+          ) : (
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hourly?.data ?? []} barGap={2} barSize={14}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="hour" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={30} axisLine={false} tickLine={false} />
+                  <Tooltip content={<TT />} />
+                  <Bar dataKey="entries" name="Kirish" fill="#10b981" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="exits" name="Chiqish" fill="#f43f5e" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 
@@ -277,37 +322,43 @@ export default function AnalyticsPage() {
           <Heart className="w-4 h-4 text-pink-500" />
           <h3 className="text-[15px] font-bold">Qurilmalar Heartbeat (7 kun)</h3>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {(heartbeat?.devices ?? []).map((d: any) => (
-            <div key={d.device_id} className="border border-border/40 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-bold">{d.device_id}</span>
-                <div className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${d.is_online ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${d.is_online ? "bg-emerald-500 pulse-dot" : "bg-gray-400"}`} />
-                  {d.is_online ? "Online" : "Offline"}
+        {!heartbeat ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[160px] rounded-xl" />)}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {(heartbeat?.devices ?? []).map((d: any) => (
+              <div key={d.device_id} className="border border-border/40 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[12px] font-bold">{d.device_id}</span>
+                  <div className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${d.is_online ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                    <div className={`w-1.5 h-1.5 rounded-full ${d.is_online ? "bg-emerald-500 pulse-dot" : "bg-gray-400"}`} />
+                    {d.is_online ? "Online" : "Offline"}
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground font-mono">{d.ip}</p>
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-muted-foreground">Uptime</span>
+                    <span className={`font-bold ${d.uptime_pct > 90 ? "text-emerald-600" : d.uptime_pct > 50 ? "text-amber-600" : "text-rose-500"}`}>{d.uptime_pct}%</span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${d.uptime_pct > 90 ? "bg-emerald-500" : d.uptime_pct > 50 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${d.uptime_pct}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-muted-foreground">Heartbeatlar</span>
+                    <span className="font-semibold">{d.total_heartbeats?.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-muted-foreground">Yo'nalish</span>
+                    <span className={`font-bold ${d.direction === "IN" ? "text-emerald-600" : "text-rose-500"}`}>{d.direction}</span>
+                  </div>
                 </div>
               </div>
-              <p className="text-[11px] text-muted-foreground font-mono">{d.ip}</p>
-              <div className="mt-3 space-y-1.5">
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-muted-foreground">Uptime</span>
-                  <span className={`font-bold ${d.uptime_pct > 90 ? "text-emerald-600" : d.uptime_pct > 50 ? "text-amber-600" : "text-rose-500"}`}>{d.uptime_pct}%</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div className={`h-full rounded-full transition-all ${d.uptime_pct > 90 ? "bg-emerald-500" : d.uptime_pct > 50 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${d.uptime_pct}%` }} />
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-muted-foreground">Heartbeatlar</span>
-                  <span className="font-semibold">{d.total_heartbeats?.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-muted-foreground">Yo'nalish</span>
-                  <span className={`font-bold ${d.direction === "IN" ? "text-emerald-600" : "text-rose-500"}`}>{d.direction}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ─── STRANGER STATS ──────────────────────────────── */}
@@ -317,51 +368,59 @@ export default function AnalyticsPage() {
             <Ghost className="w-4 h-4 text-orange-500" />
             <h3 className="text-[15px] font-bold">Notanish yuzlar statistikasi</h3>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {[
-              { label: "Jami", value: strangerStats?.total ?? 0 },
-              { label: "Bugun", value: strangerStats?.today ?? 0 },
-              { label: "Hafta", value: strangerStats?.week ?? 0 },
-              { label: "Oy", value: strangerStats?.month ?? 0 },
-            ].map((s) => (
-              <div key={s.label} className="bg-orange-50/50 rounded-xl p-3 text-center">
-                <p className="text-lg font-extrabold text-orange-600 tabular-nums"><Num value={s.value} /></p>
-                <p className="text-[10px] text-muted-foreground font-semibold">{s.label}</p>
-              </div>
-            ))}
-          </div>
-          {/* Qurilma bo'yicha */}
-          <p className="text-[11px] font-semibold text-muted-foreground mb-2">Qurilma bo'yicha</p>
-          <div className="space-y-1.5">
-            {(strangerStats?.by_device ?? []).slice(0, 8).map((d: any) => {
-              const max = strangerStats?.by_device?.[0]?.count ?? 1;
-              return (
-                <div key={d.device_id} className="flex items-center gap-2">
-                  <span className="text-[11px] font-mono text-muted-foreground w-16">{d.device_id}</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full rounded-full bg-orange-400" style={{ width: `${(d.count / max) * 100}%` }} />
+          {!strangerStats ? (
+            <Skeleton className="h-[280px] rounded-xl" />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {[
+                  { label: "Jami", value: strangerStats?.total ?? 0 },
+                  { label: "Bugun", value: strangerStats?.today ?? 0 },
+                  { label: "Hafta", value: strangerStats?.week ?? 0 },
+                  { label: "Oy", value: strangerStats?.month ?? 0 },
+                ].map((s) => (
+                  <div key={s.label} className="bg-orange-50/50 rounded-xl p-3 text-center">
+                    <p className="text-lg font-extrabold text-orange-600 tabular-nums"><Num value={s.value} /></p>
+                    <p className="text-[10px] text-muted-foreground font-semibold">{s.label}</p>
                   </div>
-                  <span className="text-[11px] font-bold tabular-nums w-10 text-right">{d.count}</span>
-                </div>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+              <p className="text-[11px] font-semibold text-muted-foreground mb-2">Qurilma bo'yicha</p>
+              <div className="space-y-1.5">
+                {(strangerStats?.by_device ?? []).slice(0, 8).map((d: any) => {
+                  const max = strangerStats?.by_device?.[0]?.count ?? 1;
+                  return (
+                    <div key={d.device_id} className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-muted-foreground w-16">{d.device_id}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full bg-orange-400" style={{ width: `${(d.count / max) * 100}%` }} />
+                      </div>
+                      <span className="text-[11px] font-bold tabular-nums w-10 text-right">{d.count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Stranger daily trend */}
         <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "950ms" }}>
           <h3 className="text-[15px] font-bold mb-5">Notanish yuzlar trendi (30 kun)</h3>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={strangerStats?.daily_trend ?? []} barSize={10}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={30} axisLine={false} tickLine={false} />
-                <Tooltip content={<TT />} />
-                <Bar dataKey="count" name="Notanish" fill="#f97316" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {!strangerStats ? (
+            <Skeleton className="h-[280px] rounded-xl" />
+          ) : (
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={strangerStats?.daily_trend ?? []} barSize={10}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                  <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} width={30} axisLine={false} tickLine={false} />
+                  <Tooltip content={<TT />} />
+                  <Bar dataKey="count" name="Notanish" fill="#f97316" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 
@@ -371,27 +430,33 @@ export default function AnalyticsPage() {
           <ShieldCheck className="w-4 h-4 text-primary" />
           <h3 className="text-[15px] font-bold">Top 10 tashrifchi (30 kun)</h3>
         </div>
-        <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
-          {(topUsers?.data ?? []).map((u: any, i: number) => {
-            const max = topUsers?.data?.[0]?.count ?? 1;
-            const medals = ["from-yellow-400 to-amber-500", "from-gray-300 to-slate-400", "from-amber-600 to-orange-700"];
-            return (
-              <div key={u.name} className="flex items-center gap-3">
-                <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${medals[i] ?? "from-slate-400 to-slate-500"} flex items-center justify-center text-[10px] font-bold text-white shadow`}>{i + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[13px] font-semibold truncate">{u.full_name}</p>
-                    <span className="text-[12px] font-bold tabular-nums ml-2">{u.count}</span>
+        {!topUsers ? (
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
+            {Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
+            {(topUsers?.data ?? []).map((u: any, i: number) => {
+              const max = topUsers?.data?.[0]?.count ?? 1;
+              const medals = ["from-yellow-400 to-amber-500", "from-gray-300 to-slate-400", "from-amber-600 to-orange-700"];
+              return (
+                <div key={u.name} className="flex items-center gap-3">
+                  <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${medals[i] ?? "from-slate-400 to-slate-500"} flex items-center justify-center text-[10px] font-bold text-white shadow`}>{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[13px] font-semibold truncate">{u.full_name}</p>
+                      <span className="text-[12px] font-bold tabular-nums ml-2">{u.count}</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-slate-100 mt-1 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary" style={{ width: `${(u.count / max) * 100}%` }} />
+                    </div>
+                    {u.role && <p className="text-[10px] text-muted-foreground mt-0.5">{u.role}</p>}
                   </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-100 mt-1 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-primary/70 to-primary" style={{ width: `${(u.count / max) * 100}%` }} />
-                  </div>
-                  {u.role && <p className="text-[10px] text-muted-foreground mt-0.5">{u.role}</p>}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

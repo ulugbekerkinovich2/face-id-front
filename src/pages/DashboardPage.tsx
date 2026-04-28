@@ -322,9 +322,12 @@ export default function DashboardPage() {
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Chiqish</div>
           </div>
         </div>
+        {!dailyChart ? (
+          <div className="h-[280px] skeleton rounded-xl" />
+        ) : (
         <div className="h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyChart?.data ?? []}>
+            <AreaChart data={dailyChart.data ?? []}>
               <defs>
                 <linearGradient id="gE" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
@@ -344,6 +347,7 @@ export default function DashboardPage() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        )}
       </div>
 
       {/* Live feed ticker */}

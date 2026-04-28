@@ -9,6 +9,7 @@ import {
   Clock,
   Activity,
   Signal,
+  Loader2,
 } from "lucide-react";
 
 function DeviceCard({ device, index }: { device: Device; index: number }) {
@@ -112,7 +113,7 @@ function DeviceCard({ device, index }: { device: Device; index: number }) {
 }
 
 export default function DevicesPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["devices"],
     queryFn: api.getDevices,
     refetchInterval: 30_000,
@@ -124,30 +125,43 @@ export default function DevicesPage() {
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
-      <div className="animate-in">
-        <h1 className="text-xl font-bold tracking-tight">Qurilmalar</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Face ID qurilmalarning real-vaqt holati
-        </p>
+      <div className="animate-in flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Qurilmalar</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Face ID qurilmalarning real-vaqt holati
+          </p>
+        </div>
+        {isFetching && !isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary mt-1" />}
       </div>
 
       {/* Summary pills */}
       <div className="flex flex-wrap gap-2 animate-in" style={{ animationDelay: "50ms" }}>
-        <div className="bg-white rounded-full border border-border/40 px-4 py-2 flex items-center gap-2">
-          <Signal className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="text-sm font-semibold">{devices.length}</span>
-          <span className="text-xs text-muted-foreground">Jami</span>
-        </div>
-        <div className="bg-emerald-50 rounded-full border border-emerald-200/60 px-4 py-2 flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" />
-          <span className="text-sm font-semibold text-emerald-700">{online}</span>
-          <span className="text-xs text-emerald-600">Online</span>
-        </div>
-        <div className="bg-gray-50 rounded-full border border-gray-200/60 px-4 py-2 flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-          <span className="text-sm font-semibold text-gray-600">{offline}</span>
-          <span className="text-xs text-gray-500">Offline</span>
-        </div>
+        {isLoading ? (
+          <>
+            <div className="h-9 w-24 skeleton rounded-full" />
+            <div className="h-9 w-24 skeleton rounded-full" />
+            <div className="h-9 w-24 skeleton rounded-full" />
+          </>
+        ) : (
+          <>
+            <div className="bg-white rounded-full border border-border/40 px-4 py-2 flex items-center gap-2">
+              <Signal className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm font-semibold">{devices.length}</span>
+              <span className="text-xs text-muted-foreground">Jami</span>
+            </div>
+            <div className="bg-emerald-50 rounded-full border border-emerald-200/60 px-4 py-2 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" />
+              <span className="text-sm font-semibold text-emerald-700">{online}</span>
+              <span className="text-xs text-emerald-600">Online</span>
+            </div>
+            <div className="bg-gray-50 rounded-full border border-gray-200/60 px-4 py-2 flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+              <span className="text-sm font-semibold text-gray-600">{offline}</span>
+              <span className="text-xs text-gray-500">Offline</span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Grid */}

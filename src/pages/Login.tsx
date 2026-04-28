@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LogIn } from 'lucide-react';
+import { LogIn, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const { signIn, user, loading: authLoading } = useAuth();
@@ -81,7 +81,9 @@ const Login = () => {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            <LogIn className="w-4 h-4 mr-2" />
+            {loading
+              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              : <LogIn className="w-4 h-4 mr-2" />}
             {loading ? 'Kirish...' : 'Kirish'}
           </Button>
         </form>

@@ -193,8 +193,9 @@ export const api = {
   getDailyChart: (days = 30) => fetchApi<{ data: ChartPoint[] }>("/chart/daily/", { days: String(days) }),
   getHourlyChart: (date?: string) => fetchApi<{ date: string; data: HourlyPoint[] }>("/chart/hourly/", date ? { date } : {}),
   getDeviceChart: (days = 7) => fetchApi<{ data: Record<string, any>[] }>("/chart/devices/", { days: String(days) }),
-  getLogs: (p: { page?: number; per_page?: number; search?: string; device?: string; date?: string; direction?: string }) =>
+  getLogs: (p: { page?: number; per_page?: number; search?: string; device?: string; date?: string; direction?: string; role?: string; time_from?: string; time_to?: string }) =>
     fetchApi<PaginatedResponse<LogEntry>>("/logs/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
+  getRoles: () => fetchApi<{ roles: string[] }>("/roles/"),
   getTopUsers: (days = 7, limit = 10) => fetchApi<{ data: TopUser[] }>("/top-users/", { days: String(days), limit: String(limit) }),
 
   // Users CRUD

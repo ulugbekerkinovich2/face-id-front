@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
   ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan,
-  Loader2, User,
+  Loader2, User, Clock, Briefcase,
 } from "lucide-react";
 import AttendanceSheet from "@/components/AttendanceSheet";
 
@@ -30,18 +30,31 @@ export default function LogsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [date, setDate] = useState("");
   const [direction, setDirection] = useState("");
+  const [role, setRole] = useState("");
+  const [timeFrom, setTimeFrom] = useState("");
+  const [timeTo, setTimeTo] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["logs", page, search, date, direction],
-    queryFn: () => api.getLogs({ page, per_page: 24, search, date, direction }),
+    queryKey: ["logs", page, search, date, direction, role, timeFrom, timeTo],
+    queryFn: () => api.getLogs({ page, per_page: 24, search, date, direction, role, time_from: timeFrom, time_to: timeTo }),
     staleTime: 15_000,
     placeholderData: (prev: any) => prev,
   });
 
+  const { data: rolesData } = useQuery({
+    queryKey: ["roles"],
+    queryFn: api.getRoles,
+    staleTime: 3_600_000,
+  });
+
   const handleSearch = () => { setSearch(searchInput); setPage(1); };
-  const clearAll = () => { setSearch(""); setSearchInput(""); setDate(""); setDirection(""); setPage(1); };
+  const hasFilter = !!(search || date || direction || role || timeFrom || timeTo);
+  const clearAll = () => {
+    setSearch(""); setSearchInput(""); setDate(""); setDirection("");
+    setRole(""); setTimeFrom(""); setTimeTo(""); setPage(1);
+  };
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -62,7 +75,7 @@ export default function LogsPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <div className="flex gap-2 flex-1 min-w-[200px] max-w-sm">
+        <div className="flex gap-2 flex-1 min-w-[180px] max-w-xs">
           <div className="relative flex-1">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -70,16 +83,16 @@ export default function LogsPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
             />
           </div>
-          <button onClick={handleSearch} className="h-9 px-4 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
+          <button onClick={handleSearch} className="h-9 px-3 text-xs font-semibold rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors">
             Qidirish
           </button>
         </div>
 
         {/* Direction */}
-        <div className="flex items-center rounded-lg border border-border/60 bg-white overflow-hidden h-9">
+        <div className="flex items-center rounded-lg border border-border/60 bg-background overflow-hidden h-9">
           {(["", "IN", "OUT"] as const).map((d) => (
             <button
               key={d}
@@ -94,18 +107,53 @@ export default function LogsPage() {
         </div>
 
         {/* Date */}
-        <div className="flex items-center gap-1.5">
-          <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-border/60 bg-background">
+          <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
           <input
             type="date"
             value={date}
             onChange={(e) => { setDate(e.target.value); setPage(1); }}
-            className="h-9 px-3 text-sm rounded-lg border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            className="h-full text-sm bg-transparent focus:outline-none text-foreground"
           />
         </div>
 
-        {(search || date || direction) && (
-          <button onClick={clearAll} className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted border border-border/40">
+        {/* Time range */}
+        <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-border/60 bg-background">
+          <Clock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <input
+            type="time"
+            value={timeFrom}
+            onChange={(e) => { setTimeFrom(e.target.value); setPage(1); }}
+            className="h-full text-sm bg-transparent focus:outline-none w-[76px] text-foreground"
+            title="Boshlanish vaqti"
+          />
+          <span className="text-muted-foreground text-xs">—</span>
+          <input
+            type="time"
+            value={timeTo}
+            onChange={(e) => { setTimeTo(e.target.value); setPage(1); }}
+            className="h-full text-sm bg-transparent focus:outline-none w-[76px] text-foreground"
+            title="Tugash vaqti"
+          />
+        </div>
+
+        {/* Role filter */}
+        <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-border/60 bg-background">
+          <Briefcase className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <select
+            value={role}
+            onChange={(e) => { setRole(e.target.value); setPage(1); }}
+            className="h-full text-sm bg-transparent focus:outline-none text-foreground pr-1 max-w-[140px]"
+          >
+            <option value="">Barcha lavozim</option>
+            {(rolesData?.roles ?? []).map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+        </div>
+
+        {hasFilter && (
+          <button onClick={clearAll} className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-muted border border-border/40 text-muted-foreground hover:text-foreground transition-colors" title="Filtrlarni tozalash">
             <X className="w-3.5 h-3.5" />
           </button>
         )}

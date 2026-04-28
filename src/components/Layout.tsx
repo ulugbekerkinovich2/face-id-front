@@ -1,108 +1,96 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import {
-  LayoutDashboard,
-  Router,
-  ScrollText,
-  BarChart3,
-  Shield,
-  Menu,
-  X,
-  Users,
-  Ghost,
-  Settings,
-  ShieldBan,
-  LogOut,
-  CreditCard,
-  UserCheck,
+  LayoutDashboard, Router, ScrollText, BarChart3, Shield,
+  Menu, X, Users, Ghost, Settings, ShieldBan, LogOut,
+  CreditCard, UserCheck, Sun, Moon,
 } from "lucide-react";
 
 const ALL_NAV = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", group: "Asosiy", roles: ["admin"] },
-  { to: "/inside", icon: UserCheck, label: "Ichkarida", group: "Asosiy", roles: ["admin"] },
-  { to: "/devices", icon: Router, label: "Qurilmalar", group: "Asosiy", roles: ["admin"] },
-  { to: "/logs", icon: ScrollText, label: "Loglar", group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/blocked", icon: ShieldBan, label: "Bloklangan", group: "Ma'lumotlar", roles: ["admin", "user"] },
-  { to: "/strangers", icon: Ghost, label: "Notanishlar", group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/card-logs", icon: CreditCard, label: "ID Karta", group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/analytics", icon: BarChart3, label: "Statistika", group: "Tahlil", roles: ["admin"] },
-  { to: "/settings", icon: Settings, label: "Sozlamalar", group: "Tahlil", roles: ["admin"] },
+  { to: "/",          icon: LayoutDashboard, label: "Dashboard",         group: "Asosiy",      roles: ["admin"] },
+  { to: "/inside",    icon: UserCheck,       label: "Ichkarida",          group: "Asosiy",      roles: ["admin"] },
+  { to: "/devices",   icon: Router,          label: "Qurilmalar",         group: "Asosiy",      roles: ["admin"] },
+  { to: "/logs",      icon: ScrollText,      label: "Loglar",             group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/users",     icon: Users,           label: "Foydalanuvchilar",   group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/blocked",   icon: ShieldBan,       label: "Bloklangan",         group: "Ma'lumotlar", roles: ["admin", "user"] },
+  { to: "/strangers", icon: Ghost,           label: "Notanishlar",        group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/card-logs", icon: CreditCard,      label: "ID Karta",           group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/analytics", icon: BarChart3,       label: "Statistika",         group: "Tahlil",      roles: ["admin"] },
+  { to: "/settings",  icon: Settings,        label: "Sozlamalar",         group: "Tahlil",      roles: ["admin"] },
 ] as const;
+
+// Mobile bottom nav — 5 ta asosiy sahifa
+const BOTTOM_NAV = ["/", "/inside", "/logs", "/users", "/analytics"] as const;
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { theme, toggle } = useTheme();
 
   const NAV = ALL_NAV.filter((n) => !user || n.roles.includes(user.role as any));
   const allowedPaths = NAV.map((n) => n.to);
+  const bottomNav = NAV.filter((n) => BOTTOM_NAV.includes(n.to as any));
 
-  // "user" rolega ruxsat berilmagan sahifaga kirsa — Bloklangan sahifaga yo'naltirish
   useEffect(() => {
     if (!user) return;
     const path = location.pathname;
     const isAllowed = allowedPaths.some((p) =>
       p === "/" ? path === "/" : path === p || path.startsWith(p + "/")
     );
-    if (!isAllowed) {
-      navigate("/blocked", { replace: true });
-    }
-  }, [user, location.pathname, allowedPaths, navigate]);
+    if (!isAllowed) navigate("/blocked", { replace: true });
+  }, [user, location.pathname]);
+
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const handleLogout = async () => {
     await signOut();
     navigate("/login", { replace: true });
   };
 
-  const pageTitle =
-    NAV.find((n) => (n.to === "/" ? location.pathname === "/" : location.pathname.startsWith(n.to)))
-      ?.label ?? "";
+  const pageTitle = NAV.find((n) =>
+    n.to === "/" ? location.pathname === "/" : location.pathname.startsWith(n.to)
+  )?.label ?? "";
+
+  const sidebarBg = theme === "dark" ? "#080d17" : "#0f172a";
+  const sidebarBorder = theme === "dark" ? "#0d1526" : "#1e293b";
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar - desktop */}
-      <aside className="w-[240px] hidden lg:flex flex-col fixed inset-y-0 z-30" style={{ background: "#0f172a" }}>
+
+      {/* ── Desktop sidebar ─────────────────────────────── */}
+      <aside className="w-[240px] hidden lg:flex flex-col fixed inset-y-0 z-30 transition-colors duration-300"
+        style={{ background: sidebarBg }}>
         {/* Logo */}
         <div className="h-[64px] flex items-center gap-3 px-5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b82f6, #818cf8)" }}>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #3b82f6, #818cf8)" }}>
             <Shield className="w-4 h-4 text-white" />
           </div>
           <div className="leading-none">
             <span className="text-[13px] font-bold text-white tracking-tight">Face ID</span>
-            <span className="block text-[10px] font-medium mt-0.5" style={{ color: "#94a3b8" }}>
-              Monitoring
-            </span>
+            <span className="block text-[10px] font-medium mt-0.5 text-slate-400">Monitoring</span>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 pt-2 space-y-0.5 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 px-3 pt-2 overflow-y-auto custom-scrollbar">
           {["Asosiy", "Ma'lumotlar", "Tahlil"].map((group) => (
-            <div key={group} className="mb-3">
-              <p className="text-[10px] uppercase tracking-widest font-semibold px-3 mb-1.5" style={{ color: "#475569" }}>
+            <div key={group} className="mb-4">
+              <p className="text-[10px] uppercase tracking-widest font-semibold px-3 mb-1.5 text-slate-500">
                 {group}
               </p>
               {NAV.filter((n) => n.group === group).map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 ${
-                      isActive
-                        ? "text-white"
-                        : "hover:text-white"
-                    }`
-                  }
+                <NavLink key={item.to} to={item.to} end={item.to === "/"}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 mb-0.5"
                   style={({ isActive }) => ({
                     color: isActive ? "#ffffff" : "#94a3b8",
                     background: isActive ? "rgba(59,130,246,0.15)" : "transparent",
-                  })}
-                >
-                  <item.icon className="w-4 h-4" />
+                  })}>
+                  <item.icon className="w-4 h-4 flex-shrink-0" />
                   {item.label}
                 </NavLink>
               ))}
@@ -110,78 +98,118 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="px-4 py-4" style={{ borderTop: "1px solid #1e293b" }}>
-          <p className="text-[10px] font-medium" style={{ color: "#475569" }}>
-            Gate Monitor v2.0
-          </p>
+        {/* Bottom: theme toggle + version */}
+        <div className="px-4 py-4 space-y-2" style={{ borderTop: `1px solid ${sidebarBorder}` }}>
+          <button onClick={toggle}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+            {theme === "dark"
+              ? <Sun className="w-3.5 h-3.5 text-amber-400" />
+              : <Moon className="w-3.5 h-3.5 text-slate-400" />}
+            {theme === "dark" ? "Yorug' rejim" : "Qorong'u rejim"}
+          </button>
+          <p className="text-[10px] font-medium text-slate-600 px-3">Gate Monitor v2.0</p>
         </div>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* ── Mobile overlay ──────────────────────────────── */}
       {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-          onClick={() => setMobileOpen(false)}
-        />
+        <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+          onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Mobile sidebar */}
-      <aside
-        style={{ background: "#0f172a" }}
-        className={`lg:hidden fixed inset-y-0 left-0 w-[260px] z-50 transition-transform duration-200 ${
+      {/* ── Mobile sidebar (slide-in) ────────────────────── */}
+      <aside style={{ background: sidebarBg }}
+        className={`lg:hidden fixed inset-y-0 left-0 w-[280px] z-50 flex flex-col transition-transform duration-300 ease-in-out ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="h-14 flex items-center justify-between px-4">
+        }`}>
+        {/* Header */}
+        <div className="h-16 flex items-center justify-between px-4 flex-shrink-0"
+          style={{ borderBottom: `1px solid ${sidebarBorder}` }}>
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(135deg, #3b82f6, #818cf8)" }}>
-              <Shield className="w-3.5 h-3.5 text-white" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #3b82f6, #818cf8)" }}>
+              <Shield className="w-4 h-4 text-white" />
             </div>
-            <span className="text-sm font-bold text-white">Face ID</span>
+            <span className="text-sm font-bold text-white">Face ID Monitor</span>
           </div>
-          <button onClick={() => setMobileOpen(false)} style={{ color: "#94a3b8" }}>
+          <button onClick={() => setMobileOpen(false)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all">
             <X className="w-5 h-5" />
           </button>
         </div>
-        <nav className="px-3 pt-1 space-y-0.5">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all`
-              }
-              style={({ isActive }) => ({
-                color: isActive ? "#ffffff" : "#94a3b8",
-                background: isActive ? "rgba(59,130,246,0.15)" : "transparent",
-              })}
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </NavLink>
+
+        {/* Nav with groups */}
+        <nav className="flex-1 px-3 pt-3 overflow-y-auto custom-scrollbar">
+          {["Asosiy", "Ma'lumotlar", "Tahlil"].map((group) => (
+            <div key={group} className="mb-4">
+              <p className="text-[10px] uppercase tracking-widest font-semibold px-3 mb-1.5 text-slate-500">
+                {group}
+              </p>
+              {NAV.filter((n) => n.group === group).map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.to === "/"}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150 mb-1"
+                  style={({ isActive }) => ({
+                    color: isActive ? "#ffffff" : "#94a3b8",
+                    background: isActive ? "rgba(59,130,246,0.2)" : "transparent",
+                  })}>
+                  <item.icon className="w-4.5 h-4.5 flex-shrink-0" />
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
+
+        {/* Footer: user + theme + logout */}
+        <div className="px-4 py-4 space-y-2 flex-shrink-0"
+          style={{ borderTop: `1px solid ${sidebarBorder}` }}>
+          {user && (
+            <div className="px-3 py-2 rounded-xl bg-white/5 mb-2">
+              <p className="text-xs font-semibold text-white">{user.username}</p>
+              <p className="text-[10px] text-slate-400 capitalize">{user.role}</p>
+            </div>
+          )}
+          <button onClick={toggle}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all">
+            {theme === "dark"
+              ? <Sun className="w-4 h-4 text-amber-400" />
+              : <Moon className="w-4 h-4 text-slate-300" />}
+            {theme === "dark" ? "Yorug' rejim" : "Qorong'u rejim"}
+          </button>
+          <button onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-all">
+            <LogOut className="w-4 h-4" />
+            Chiqish
+          </button>
+        </div>
       </aside>
 
-      {/* Main area */}
+      {/* ── Main area ───────────────────────────────────── */}
       <div className="flex-1 lg:ml-[240px] flex flex-col min-h-screen">
+
         {/* Top bar */}
-        <header className="h-14 lg:h-[64px] border-b border-border/60 bg-white/70 backdrop-blur-md sticky top-0 z-20 flex items-center px-4 lg:px-6 gap-3">
-          <button
-            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-md hover:bg-muted transition-colors"
-            onClick={() => setMobileOpen(true)}
-          >
-            <Menu className="w-[18px] h-[18px] text-muted-foreground" />
+        <header className="h-14 lg:h-[64px] border-b border-border/60 bg-background/80 backdrop-blur-md sticky top-0 z-20 flex items-center px-4 lg:px-6 gap-3">
+          <button className="lg:hidden w-9 h-9 flex items-center justify-center rounded-xl hover:bg-muted transition-colors"
+            onClick={() => setMobileOpen(true)}>
+            <Menu className="w-5 h-5 text-muted-foreground" />
           </button>
           <h2 className="text-sm font-semibold text-foreground">{pageTitle}</h2>
 
           <div className="ml-auto flex items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-full">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" />
-              Live
+              <span className="hidden sm:inline">Live</span>
             </div>
+
+            {/* Theme toggle (desktop header) */}
+            <button onClick={toggle}
+              className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
+              title={theme === "dark" ? "Yorug' rejim" : "Qorong'u rejim"}>
+              {theme === "dark"
+                ? <Sun className="w-4 h-4 text-amber-400" />
+                : <Moon className="w-4 h-4 text-muted-foreground" />}
+            </button>
+
             {user && (
               <>
                 <span className="hidden sm:inline text-xs text-muted-foreground px-2">
@@ -191,7 +219,7 @@ export default function Layout() {
                   </span>
                 </span>
                 <button onClick={handleLogout}
-                  className="h-8 px-3 rounded-lg text-xs font-semibold bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center gap-1.5"
+                  className="h-8 px-3 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 flex items-center gap-1.5 transition-colors"
                   title="Chiqish">
                   <LogOut className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Chiqish</span>
@@ -202,9 +230,32 @@ export default function Layout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 overflow-y-auto custom-scrollbar pb-20 lg:pb-0">
           <Outlet />
         </main>
+
+        {/* ── Mobile bottom nav ────────────────────────── */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-background/90 backdrop-blur-md flex items-stretch h-16 safe-area-pb">
+          {bottomNav.map((item) => {
+            const isActive = item.to === "/"
+              ? location.pathname === "/"
+              : location.pathname.startsWith(item.to);
+            return (
+              <NavLink key={item.to} to={item.to} end={item.to === "/"}
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                style={{ color: isActive ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))" }}>
+                <item.icon className="w-5 h-5" />
+                <span className="text-[9px] font-semibold">{item.label}</span>
+              </NavLink>
+            );
+          })}
+          {/* Hamburger for full menu */}
+          <button onClick={() => setMobileOpen(true)}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-muted-foreground transition-colors">
+            <Menu className="w-5 h-5" />
+            <span className="text-[9px] font-semibold">Ko'proq</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

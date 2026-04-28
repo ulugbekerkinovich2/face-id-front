@@ -122,6 +122,31 @@ export interface Stranger {
   image: string | null; time: string; ip_address: string;
 }
 
+export interface AttendanceDay {
+  date: string;
+  status: "on_time" | "late" | "absent";
+  entry: string | null;
+  exit: string | null;
+  late_sec: number;
+}
+
+export interface AttendanceProfile {
+  name: string;
+  full_name: string;
+  role: string | null;
+  image: string | null;
+  stats: {
+    today_entry: string | null;
+    avg_arrival: string | null;
+    late_count: number;
+    absent_count: number;
+    total_entries: number;
+  };
+  timeline: AttendanceDay[];
+  arrival_chart: { date: string; minutes: number }[];
+  recent_images: { time: string; image: string }[];
+}
+
 export interface CardLogEntry {
   id: number;
   name: string;
@@ -174,6 +199,10 @@ export const api = {
   // Card logs
   getCardLogs: (p: { page?: number; per_page?: number; search?: string; date?: string; direction?: string }) =>
     fetchApi<PaginatedResponse<CardLogEntry>>("/logs/card/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
+
+  // Attendance
+  getUserAttendance: (name: string, days = 30) =>
+    fetchApi<AttendanceProfile>("/attendance/user/", { name, days: String(days) }),
 
   // Full Analytics
   getFullStats: () => fetchApi<any>("/analytics/full/"),

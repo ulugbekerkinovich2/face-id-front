@@ -5,6 +5,7 @@ import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
   ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan,
 } from "lucide-react";
+import AttendanceSheet from "@/components/AttendanceSheet";
 
 export default function LogsPage() {
   const [page, setPage] = useState(1);
@@ -13,6 +14,7 @@ export default function LogsPage() {
   const [date, setDate] = useState("");
   const [direction, setDirection] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [selectedName, setSelectedName] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["logs", page, search, date, direction],
@@ -126,7 +128,12 @@ export default function LogsPage() {
 
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-[13px] font-semibold">{log.name || "Noma'lum"}</p>
+                        <button
+                          className="text-[13px] font-semibold hover:text-primary hover:underline underline-offset-2 transition-colors text-left"
+                          onClick={() => setSelectedName(log.name)}
+                        >
+                          {log.name || "Noma'lum"}
+                        </button>
                         {isBlocked && (
                           <span className="inline-flex items-center gap-0.5 text-[8px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full font-bold">
                             <ShieldBan className="w-2.5 h-2.5" />BLOK
@@ -205,6 +212,13 @@ export default function LogsPage() {
           </div>
         )}
       </div>
+
+      {/* Attendance detail sheet */}
+      <AttendanceSheet
+        name={selectedName}
+        open={!!selectedName}
+        onClose={() => setSelectedName(null)}
+      />
 
       {/* Lightbox */}
       {lightbox && (

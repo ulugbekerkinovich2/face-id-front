@@ -165,6 +165,13 @@ export default function DashboardPage() {
     staleTime: 15_000,
   });
 
+  const { data: insideData } = useQuery({
+    queryKey: ["inside"],
+    queryFn: api.getInsideNow,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
   const { data: dailyChart } = useQuery({
     queryKey: ["dailyChart"],
     queryFn: () => api.getDailyChart(14),
@@ -203,7 +210,7 @@ export default function DashboardPage() {
     },
     {
       title: "Hozir ichkarida",
-      value: stats?.currently_inside ?? 0,
+      value: insideData?.count ?? stats?.currently_inside ?? 0,
       icon: UserCheck,
       gradient: "from-blue-500 to-indigo-600",
     },

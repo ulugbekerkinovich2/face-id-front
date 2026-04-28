@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LogIn, Shield } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 const Login = () => {
   const { signIn, user, loading: authLoading } = useAuth();
@@ -39,9 +39,11 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Shield className="w-8 h-8 text-primary" />
-          </div>
+          <img
+            src="/aifu-logo.svg"
+            alt="AIFU"
+            className="inline-block w-16 h-16 rounded-2xl shadow-md mb-4"
+          />
           <h1 className="text-2xl font-bold text-foreground">Turniket Tizimi</h1>
           <p className="text-muted-foreground mt-1">Admin paneliga kirish</p>
         </div>

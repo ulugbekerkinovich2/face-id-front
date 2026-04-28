@@ -275,23 +275,64 @@ export default function AnalyticsPage() {
       {/* ─── R2 STORAGE ─────────────────────────────────────── */}
       {storage?.accounts && (
         <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "820ms" }}>
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-blue-500" />
-              <h3 className="text-[15px] font-bold">R2 Cloud Storage</h3>
-              <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">10 daqiqada yangilanadi</span>
+          {/* Header */}
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Database className="w-4 h-4 text-blue-500" />
+                <h3 className="text-[15px] font-bold">R2 Cloud Storage</h3>
+                <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">10 daqiqada yangilanadi</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground ml-6">
+                {storage.total_files?.toLocaleString()} ta fayl · Egress bepul (Cloudflare R2)
+              </p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-extrabold tabular-nums">{storage.total_size_gb} GB <span className="text-[12px] font-normal text-muted-foreground">/ {storage.total_max_gb} GB</span></p>
-              <p className="text-[11px] text-muted-foreground">{storage.total_files?.toLocaleString()} ta fayl</p>
+              <p className="text-lg font-extrabold tabular-nums">
+                {storage.total_size_gb} GB
+                <span className="text-[12px] font-normal text-muted-foreground"> / {storage.total_max_gb} GB</span>
+              </p>
+              {storage.total_monthly_cost_usd > 0 ? (
+                <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                  <span className="text-[11px] text-emerald-600 font-medium">
+                    {storage.total_max_gb} GB tekin
+                  </span>
+                  <span className="text-muted-foreground text-[10px]">+</span>
+                  <span className="text-[12px] font-bold text-rose-500">
+                    ${storage.total_monthly_cost_usd}/oy
+                  </span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">✓ Tekin limitda</p>
+              )}
             </div>
           </div>
+
+          {/* Pricing info bar */}
+          <div className="flex items-center gap-4 mb-4 px-3 py-2 rounded-xl bg-blue-50/60 border border-blue-100 text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-emerald-700 font-medium">Tekin: {storage.free_gb_per_account ?? 10} GB / account</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-rose-400" />
+              <span className="text-rose-600 font-medium">Pulli: ${storage.price_per_gb ?? "0.015"}/GB/oy</span>
+            </div>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <span className="text-muted-foreground">Jami oylik:</span>
+              <span className={`font-bold ${storage.total_monthly_cost_usd > 0 ? "text-rose-500" : "text-emerald-600"}`}>
+                {storage.total_monthly_cost_usd > 0 ? `$${storage.total_monthly_cost_usd}` : "$0 (tekin)"}
+              </span>
+            </div>
+          </div>
+
+          {/* Per-account cards */}
           <div className="grid md:grid-cols-3 gap-3">
             {storage.accounts.map((acc: any) => (
-              <div key={acc.name} className="border border-border/40 rounded-xl p-4">
+              <div key={acc.name} className={`border rounded-xl p-4 ${acc.is_over_free ? "border-rose-200 bg-rose-50/30" : "border-border/40"}`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[12px] font-bold">{acc.name}</span>
-                  <span className="text-[10px] text-muted-foreground font-mono">{acc.bucket}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono truncate ml-1">{acc.bucket}</span>
                 </div>
                 {acc.error ? (
                   <p className="text-[11px] text-rose-500">Ulanish xatosi</p>
@@ -301,14 +342,36 @@ export default function AnalyticsPage() {
                       <span className="text-muted-foreground">{acc.files?.toLocaleString()} fayl</span>
                       <span className="font-bold">{acc.size_gb} / {acc.max_gb} GB</span>
                     </div>
-                    <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${
-                        acc.size_gb >= 9.5 ? "bg-rose-500 animate-pulse" : acc.used_pct > 70 ? "bg-amber-500" : "bg-blue-500"
-                      }`} style={{ width: `${Math.min(acc.used_pct, 100)}%` }} />
+                    {/* Progress bar: green = free zone, red = paid zone */}
+                    <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden relative">
+                      {/* Free zone fill */}
+                      <div className="absolute inset-0 h-full rounded-full bg-emerald-400 transition-all"
+                        style={{ width: `${Math.min((Math.min(acc.size_gb, acc.free_gb ?? 10) / acc.max_gb) * 100, 100)}%` }} />
+                      {/* Paid zone fill */}
+                      {acc.is_over_free && (
+                        <div className="absolute inset-0 h-full rounded-full bg-rose-500 animate-pulse transition-all"
+                          style={{ width: `${Math.min(acc.used_pct, 100)}%` }} />
+                      )}
                     </div>
-                    <p className={`text-[10px] mt-1 text-right font-semibold ${acc.size_gb >= 9.5 ? "text-rose-500" : "text-muted-foreground"}`}>
-                      {acc.size_gb >= 9.5 ? "LIMIT!" : `${acc.used_pct}% band`}
-                    </p>
+                    {/* Free/paid limit marker */}
+                    <div className="flex items-center justify-between mt-1.5">
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                        <span className="text-[10px] text-emerald-700 font-medium">
+                          {Math.min(acc.size_gb, acc.free_gb ?? 10).toFixed(2)} GB tekin
+                        </span>
+                      </div>
+                      {acc.is_over_free ? (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0" />
+                          <span className="text-[10px] text-rose-600 font-bold">
+                            +{acc.paid_gb} GB · ${acc.monthly_cost_usd}/oy
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">{acc.used_pct}% band</span>
+                      )}
+                    </div>
                   </>
                 )}
               </div>

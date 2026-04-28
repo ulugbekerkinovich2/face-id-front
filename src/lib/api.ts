@@ -135,12 +135,17 @@ export interface AttendanceProfile {
   full_name: string;
   role: string | null;
   image: string | null;
+  work_start: string;
+  work_end: string;
   stats: {
     today_entry: string | null;
     avg_arrival: string | null;
     late_count: number;
     absent_count: number;
     total_entries: number;
+    total_work_days: number;
+    attendance_pct: number;
+    avg_late_min: number | null;
   };
   timeline: AttendanceDay[];
   arrival_chart: { date: string; minutes: number }[];
@@ -218,8 +223,10 @@ export const api = {
     fetchApi<PaginatedResponse<CardLogEntry>>("/logs/card/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
 
   // Attendance
-  getUserAttendance: (name: string, days = 30) =>
-    fetchApi<AttendanceProfile>("/attendance/user/", { name, days: String(days) }),
+  getUserAttendance: (name: string, days = 30, workStart = "09:00", workEnd = "18:00") =>
+    fetchApi<AttendanceProfile>("/attendance/user/", {
+      name, days: String(days), work_start: workStart, work_end: workEnd,
+    }),
 
   // Live
   getLiveFeed: (limit = 12, sinceId = 0) =>

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   CreditCard, Search, Calendar, ChevronLeft, ChevronRight,
-  ArrowDownToLine, ArrowUpFromLine, X, Eye, User,
+  ArrowDownToLine, ArrowUpFromLine, X, Eye, User, Loader2,
 } from "lucide-react";
 
 const DOOR_LABEL: Record<number, string> = {
@@ -33,9 +33,10 @@ export default function CardLogsPage() {
   const [direction, setDirection] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["card-logs", page, search, date, direction],
     queryFn: () => api.getCardLogs({ page, per_page: 24, search, date, direction }),
+    placeholderData: (prev: any) => prev,
   });
 
   function reset() {
@@ -110,6 +111,15 @@ export default function CardLogsPage() {
       </div>
 
       {/* Grid */}
+      <div className="relative">
+        {isFetching && !isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+            <div className="flex items-center gap-2 bg-white shadow border border-border/30 rounded-lg px-3 py-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span className="text-[11px] text-muted-foreground font-medium">Yuklanmoqda...</span>
+            </div>
+          </div>
+        )}
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
           {[...Array(12)].map((_, i) => (
@@ -193,6 +203,7 @@ export default function CardLogsPage() {
           ))}
         </div>
       )}
+      </div>
 
       {/* Pagination */}
       {data && data.total_pages > 1 && (

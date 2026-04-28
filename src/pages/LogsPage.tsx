@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
-  ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan,
+  ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan, Loader2,
 } from "lucide-react";
 import AttendanceSheet from "@/components/AttendanceSheet";
 
@@ -16,7 +16,7 @@ export default function LogsPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["logs", page, search, date, direction],
     queryFn: () => api.getLogs({ page, per_page: 25, search, date, direction }),
     staleTime: 15_000,
@@ -74,7 +74,15 @@ export default function LogsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-border/50 overflow-hidden animate-in" style={{ animationDelay: "100ms" }}>
+      <div className="relative bg-white rounded-xl border border-border/50 overflow-hidden animate-in" style={{ animationDelay: "100ms" }}>
+        {isFetching && !isLoading && (
+          <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-10 rounded-xl pointer-events-none">
+            <div className="flex items-center gap-2 bg-white shadow border border-border/30 rounded-lg px-3 py-1.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span className="text-[11px] text-muted-foreground font-medium">Yuklanmoqda...</span>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>

@@ -122,6 +122,17 @@ export interface Stranger {
   image: string | null; time: string; ip_address: string;
 }
 
+export interface CardLogEntry {
+  id: number;
+  name: string;
+  full_name: string;
+  face_id: number;
+  direction: "IN" | "OUT" | "UNKNOWN";
+  similarity: number;
+  time: string;
+  image: string | null;
+}
+
 export interface PaginatedResponse<T> {
   total: number; page: number; per_page: number; total_pages: number; data: T[];
 }
@@ -159,6 +170,10 @@ export const api = {
   getStrangers: (p: { page?: number; per_page?: number; date?: string; device?: string }) =>
     fetchApi<PaginatedResponse<Stranger>>("/strangers/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
   deleteStranger: (id: number) => deleteApi<{ status: string }>(`/strangers/${id}/`),
+
+  // Card logs
+  getCardLogs: (p: { page?: number; per_page?: number; search?: string; date?: string; direction?: string }) =>
+    fetchApi<PaginatedResponse<CardLogEntry>>("/logs/card/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
 
   // Full Analytics
   getFullStats: () => fetchApi<any>("/analytics/full/"),

@@ -14,6 +14,7 @@ import {
   Settings,
   ShieldBan,
   LogOut,
+  CreditCard,
 } from "lucide-react";
 
 const ALL_NAV = [
@@ -23,6 +24,7 @@ const ALL_NAV = [
   { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin"] },
   { to: "/blocked", icon: ShieldBan, label: "Bloklangan", group: "Ma'lumotlar", roles: ["admin", "user"] },
   { to: "/strangers", icon: Ghost, label: "Notanishlar", group: "Ma'lumotlar", roles: ["admin"] },
+  { to: "/card-logs", icon: CreditCard, label: "ID Karta", group: "Ma'lumotlar", roles: ["admin"] },
   { to: "/analytics", icon: BarChart3, label: "Statistika", group: "Tahlil", roles: ["admin"] },
   { to: "/settings", icon: Settings, label: "Sozlamalar", group: "Tahlil", roles: ["admin"] },
 ] as const;

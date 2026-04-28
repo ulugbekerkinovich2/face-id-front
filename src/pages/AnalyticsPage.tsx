@@ -326,6 +326,44 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
+          {/* Cost predictions */}
+          {storage.predictions && (
+            <div className="mb-4 rounded-xl border border-border/40 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
+                <span className="text-[12px] font-bold">Xarajat Prognozi</span>
+                {storage.usd_uzs_rate && (
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    1 USD = {storage.usd_uzs_rate.toLocaleString()} so'm (CBU, kunlik)
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-5 divide-x divide-border/30">
+                {([1, 3, 6, 9, 12] as const).map((m) => {
+                  const p = storage.predictions?.[String(m)];
+                  if (!p) return null;
+                  return (
+                    <div key={m} className="px-3 py-3 text-center">
+                      <p className="text-[10px] text-muted-foreground font-medium mb-1.5">{m} oy</p>
+                      {storage.total_monthly_cost_usd > 0 ? (
+                        <>
+                          <p className="text-[13px] font-extrabold text-rose-600 tabular-nums">${p.usd}</p>
+                          <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
+                            {Math.round(p.uzs / 1000).toLocaleString()} ming so'm
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[13px] font-extrabold text-emerald-600">$0</p>
+                          <p className="text-[10px] text-emerald-600/70 mt-0.5">Tekin</p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Per-account cards */}
           <div className="grid md:grid-cols-3 gap-3">
             {storage.accounts.map((acc: any) => (

@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
   ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan,
-  Loader2, User, Clock, Briefcase,
+  Loader2, User, Clock, Briefcase, CalendarRange,
 } from "lucide-react";
 import AttendanceSheet from "@/components/AttendanceSheet";
 
@@ -29,6 +29,8 @@ export default function LogsPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [date, setDate] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [direction, setDirection] = useState("");
   const [role, setRole] = useState("");
   const [timeFrom, setTimeFrom] = useState("");
@@ -37,8 +39,8 @@ export default function LogsPage() {
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["logs", page, search, date, direction, role, timeFrom, timeTo],
-    queryFn: () => api.getLogs({ page, per_page: 24, search, date, direction, role, time_from: timeFrom, time_to: timeTo }),
+    queryKey: ["logs", page, search, date, dateFrom, dateTo, direction, role, timeFrom, timeTo],
+    queryFn: () => api.getLogs({ page, per_page: 24, search, date, date_from: dateFrom, date_to: dateTo, direction, role, time_from: timeFrom, time_to: timeTo }),
     staleTime: 15_000,
     placeholderData: (prev: any) => prev,
   });
@@ -50,10 +52,10 @@ export default function LogsPage() {
   });
 
   const handleSearch = () => { setSearch(searchInput); setPage(1); };
-  const hasFilter = !!(search || date || direction || role || timeFrom || timeTo);
+  const hasFilter = !!(search || date || dateFrom || dateTo || direction || role || timeFrom || timeTo);
   const clearAll = () => {
-    setSearch(""); setSearchInput(""); setDate(""); setDirection("");
-    setRole(""); setTimeFrom(""); setTimeTo(""); setPage(1);
+    setSearch(""); setSearchInput(""); setDate(""); setDateFrom(""); setDateTo("");
+    setDirection(""); setRole(""); setTimeFrom(""); setTimeTo(""); setPage(1);
   };
 
   return (
@@ -106,14 +108,34 @@ export default function LogsPage() {
           ))}
         </div>
 
-        {/* Date */}
+        {/* Single date */}
         <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-border/60 bg-background">
           <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
           <input
             type="date"
             value={date}
-            onChange={(e) => { setDate(e.target.value); setPage(1); }}
+            onChange={(e) => { setDate(e.target.value); setDateFrom(""); setDateTo(""); setPage(1); }}
             className="h-full text-sm bg-transparent focus:outline-none text-foreground"
+          />
+        </div>
+
+        {/* Date range */}
+        <div className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-border/60 bg-background">
+          <CalendarRange className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setDate(""); setPage(1); }}
+            className="h-full text-sm bg-transparent focus:outline-none w-[120px] text-foreground"
+            title="Boshlanish sanasi"
+          />
+          <span className="text-muted-foreground text-xs">—</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setDate(""); setPage(1); }}
+            className="h-full text-sm bg-transparent focus:outline-none w-[120px] text-foreground"
+            title="Tugash sanasi"
           />
         </div>
 

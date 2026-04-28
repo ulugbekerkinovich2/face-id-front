@@ -180,6 +180,19 @@ export interface CardLogEntry {
   image: string | null;
 }
 
+export interface MigrationJob {
+  job_id?: string;
+  status: "queued" | "listing" | "running" | "done" | "partial" | "error";
+  source: string;
+  dest: string;
+  total: number;
+  copied: number;
+  failed: number;
+  deleted: number;
+  errors?: { key: string; error: string }[];
+  error?: string;
+}
+
 export interface PaginatedResponse<T> {
   total: number; page: number; per_page: number; total_pages: number; data: T[];
 }
@@ -260,6 +273,12 @@ export const api = {
     devices?: number[]; last_seen?: string; last_device?: number;
     message?: string;
   }>("/users/check/", { name }),
+
+  // R2 Migration
+  startMigration: (source: string, dest: string, deleteSource = true) =>
+    postApi<{ job_id: string; status: string }>("/storage/migrate/", { source, dest, delete_source: deleteSource }),
+  getMigrationStatus: (jobId: string) => fetchApi<MigrationJob>(`/storage/migrate/${jobId}/`),
+  getMigrationList: () => fetchApi<{ jobs: (MigrationJob & { job_id: string })[] }>("/storage/migrate/list/"),
 
   bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
     const fd = new FormData();

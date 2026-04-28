@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, LiveFeedEntry } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import {
   Users, DoorOpen, DoorClosed, UserCheck, TrendingUp, TrendingDown,
-  Clock, Ghost, Activity,
+  Clock, Ghost, Activity, ArrowDownToLine, ArrowUpFromLine, User,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function Num({ value, className = "" }: { value: number; className?: string }) {
   const v = useAnimatedNumber(value);
@@ -30,6 +30,102 @@ const ChartTooltip = ({ active, payload, label }: any) => {
     </div>
   );
 };
+
+function initials(name: string) {
+  return name.split(" ").slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
+}
+
+function LiveFeedTicker() {
+  const [items, setItems] = useState<LiveFeedEntry[]>([]);
+  const [newIds, setNewIds] = useState<Set<number>>(new Set());
+  const latestId = useRef(0);
+
+  const { data } = useQuery({
+    queryKey: ["live-feed"],
+    queryFn: () => api.getLiveFeed(10, 0),
+    refetchInterval: 8_000,
+    staleTime: 5_000,
+  });
+
+  useEffect(() => {
+    if (!data?.data?.length) return;
+    if (latestId.current === 0) {
+      setItems(data.data);
+      latestId.current = data.latest_id;
+      return;
+    }
+    const fresh = data.data.filter((e) => e.id > latestId.current);
+    if (fresh.length > 0) {
+      setNewIds(new Set(fresh.map((e) => e.id)));
+      setItems((prev) => [...fresh, ...prev].slice(0, 10));
+      latestId.current = data.latest_id;
+      setTimeout(() => setNewIds(new Set()), 2000);
+    }
+  }, [data]);
+
+  if (!items.length) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-border/50 p-5 count-up" style={{ animationDelay: "420ms" }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <h3 className="text-[14px] font-bold">Jonli kirish/chiqish</h3>
+        </div>
+        <span className="text-[10px] text-muted-foreground">8 soniyada yangilanadi</span>
+      </div>
+
+      <div className="space-y-1.5">
+        {items.map((entry) => {
+          const isNew = newIds.has(entry.id);
+          const isIn = entry.direction === "IN";
+          return (
+            <div
+              key={entry.id}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-500 ${
+                isNew ? "bg-emerald-50 ring-1 ring-emerald-200 scale-[1.01]" : "hover:bg-muted/40"
+              }`}
+            >
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-muted">
+                {entry.image ? (
+                  <img src={entry.image} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+                    <span className="text-[10px] font-bold text-slate-500">
+                      {entry.full_name || entry.name ? initials(entry.full_name || entry.name) : <User className="w-4 h-4" />}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Name */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-semibold truncate">
+                  {entry.full_name || entry.name || "Noma'lum"}
+                </p>
+                <p className="text-[10px] text-muted-foreground tabular-nums">
+                  {entry.time ? new Date(entry.time).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}
+                </p>
+              </div>
+
+              {/* Direction */}
+              <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0 ${
+                isIn ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
+              }`}>
+                {isIn ? <ArrowDownToLine className="w-3 h-3" /> : <ArrowUpFromLine className="w-3 h-3" />}
+                {isIn ? "Kirdi" : "Chiqdi"}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function LiveBadge({ updatedAt }: { updatedAt: Date | null }) {
   const [ago, setAgo] = useState("");
@@ -204,6 +300,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Live feed + Chart side by side on large screens */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-4">
+
       {/* Chart */}
       <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "500ms" }}>
         <div className="flex items-center justify-between mb-6">
@@ -239,6 +338,11 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* Live feed ticker */}
+      <LiveFeedTicker />
+
+      </div>{/* end grid */}
     </div>
   );
 }

@@ -15,10 +15,12 @@ import {
   ShieldBan,
   LogOut,
   CreditCard,
+  UserCheck,
 } from "lucide-react";
 
 const ALL_NAV = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", group: "Asosiy", roles: ["admin"] },
+  { to: "/inside", icon: UserCheck, label: "Ichkarida", group: "Asosiy", roles: ["admin"] },
   { to: "/devices", icon: Router, label: "Qurilmalar", group: "Asosiy", roles: ["admin"] },
   { to: "/logs", icon: ScrollText, label: "Loglar", group: "Ma'lumotlar", roles: ["admin"] },
   { to: "/users", icon: Users, label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin"] },

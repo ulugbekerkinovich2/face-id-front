@@ -1,13 +1,10 @@
-const API_BASE = import.meta.env.VITE_API_URL || "https://face-id-admin.misterdev.uz/api";
-
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("authToken");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+if (!import.meta.env.VITE_API_URL) {
+  console.warn("VITE_API_URL is not set — API requests may fail");
 }
+const API_BASE = import.meta.env.VITE_API_URL as string;
 
 function handleUnauthorized(status: number) {
   if (status === 401) {
-    localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
     window.dispatchEvent(new Event("auth:expired"));
   }
@@ -20,7 +17,7 @@ async function fetchApi<T>(path: string, params?: Record<string, string>): Promi
       if (v) url.searchParams.set(k, v);
     });
   }
-  const res = await fetch(url.toString(), { headers: authHeaders() });
+  const res = await fetch(url.toString(), { credentials: "include" });
   if (!res.ok) {
     handleUnauthorized(res.status);
     const err = await res.json().catch(() => ({}));
@@ -32,7 +29,8 @@ async function fetchApi<T>(path: string, params?: Record<string, string>): Promi
 async function postApi<T>(path: string, body: any): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -44,7 +42,7 @@ async function postApi<T>(path: string, body: any): Promise<T> {
 }
 
 async function deleteApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { method: "DELETE", headers: authHeaders() });
+  const res = await fetch(`${API_BASE}${path}`, { method: "DELETE", credentials: "include" });
   if (!res.ok) {
     handleUnauthorized(res.status);
     throw new Error(`API error: ${res.status}`);
@@ -193,7 +191,7 @@ export const api = {
     fd.append("file", file);
     fd.append("action", action);
     const res = await fetch(`${API_BASE}/users/bulk-block-excel/`, {
-      method: "POST", body: fd, headers: authHeaders(),
+      method: "POST", body: fd, credentials: "include",
     });
     if (!res.ok) {
       handleUnauthorized(res.status);

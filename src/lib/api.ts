@@ -147,6 +147,23 @@ export interface AttendanceProfile {
   recent_images: { time: string; image: string }[];
 }
 
+export interface InsideEntry {
+  name: string;
+  full_name: string;
+  entry_time: string;
+  image: string | null;
+}
+
+export interface LiveFeedEntry {
+  id: number;
+  name: string;
+  full_name: string;
+  direction: "IN" | "OUT" | "UNKNOWN";
+  face_id: number;
+  time: string | null;
+  image: string | null;
+}
+
 export interface CardLogEntry {
   id: number;
   name: string;
@@ -203,6 +220,12 @@ export const api = {
   // Attendance
   getUserAttendance: (name: string, days = 30) =>
     fetchApi<AttendanceProfile>("/attendance/user/", { name, days: String(days) }),
+
+  // Live
+  getLiveFeed: (limit = 12, sinceId = 0) =>
+    fetchApi<{ data: LiveFeedEntry[]; latest_id: number }>("/live-feed/", { limit: String(limit), since_id: String(sinceId) }),
+  getInsideNow: () =>
+    fetchApi<{ count: number; data: InsideEntry[] }>("/inside/"),
 
   // Full Analytics
   getFullStats: () => fetchApi<any>("/analytics/full/"),

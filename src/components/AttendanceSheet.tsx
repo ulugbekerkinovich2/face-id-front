@@ -6,7 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine, Cell,
 } from "recharts";
-import { User, Clock, TrendingUp, AlertCircle, CalendarX, X } from "lucide-react";
+import { User, Clock, TrendingUp, AlertCircle, CalendarX, X, Flame, Award, Zap } from "lucide-react";
 
 interface Props {
   name: string | null;
@@ -168,6 +168,39 @@ export default function AttendanceSheet({ name, open, onClose }: Props) {
                 />
               </div>
             ) : null}
+
+            {/* Streak & badges */}
+            {!isLoading && data?.timeline && (() => {
+              const tl = [...data.timeline].reverse();
+              let streak = 0;
+              for (const d of tl) {
+                if (d.status === "on_time" || d.status === "late") streak++;
+                else break;
+              }
+              const onTimeCount = data.timeline.filter(d => d.status === "on_time").length;
+              const total = data.timeline.filter(d => d.status !== "absent").length;
+              const pct = total > 0 ? Math.round((onTimeCount / data.stats.total_entries + (data.stats.late_count > 0 ? data.stats.late_count : 0)) * 100) : 0;
+              const attendancePct = total > 0 ? Math.round(total / data.timeline.length * 100) : 0;
+
+              const badges = [];
+              if (streak >= 5) badges.push({ icon: <Flame className="w-3.5 h-3.5 text-orange-500" />, label: `🔥 ${streak} kun ketma-ket`, color: "bg-orange-50 border-orange-200 text-orange-700" });
+              if (onTimeCount >= 10) badges.push({ icon: <Award className="w-3.5 h-3.5 text-violet-500" />, label: `🏆 ${onTimeCount}x o'z vaqtida`, color: "bg-violet-50 border-violet-200 text-violet-700" });
+              if (attendancePct >= 90) badges.push({ icon: <Zap className="w-3.5 h-3.5 text-emerald-500" />, label: `⚡ ${attendancePct}% davomat`, color: "bg-emerald-50 border-emerald-200 text-emerald-700" });
+
+              if (!badges.length && streak > 0) badges.push({ icon: <Flame className="w-3.5 h-3.5 text-slate-400" />, label: `${streak} kun ketma-ket`, color: "bg-slate-50 border-slate-200 text-slate-600" });
+              if (!badges.length) return null;
+
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {badges.map((b, i) => (
+                    <div key={i} className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border ${b.color}`}>
+                      {b.icon}
+                      {b.label}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Timeline grid */}
             {isLoading ? (

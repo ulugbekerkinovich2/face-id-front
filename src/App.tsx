@@ -14,6 +14,7 @@ const LogsPage = lazy(() => import("@/pages/LogsPage"));
 const UsersPage = lazy(() => import("@/pages/UsersPage"));
 const BlockedPage = lazy(() => import("@/pages/BlockedPage"));
 const StrangersPage = lazy(() => import("@/pages/StrangersPage"));
+const CardLogsPage = lazy(() => import("@/pages/CardLogsPage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const Login = lazy(() => import("@/pages/Login"));
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/users" element={<UsersPage />} />
               <Route path="/blocked" element={<BlockedPage />} />
               <Route path="/strangers" element={<StrangersPage />} />
+              <Route path="/card-logs" element={<CardLogsPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

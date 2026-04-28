@@ -40,7 +40,7 @@ export default function AnalyticsPage() {
   const { data: topUsers } = useQuery({ queryKey: ["topAll"], queryFn: () => api.getTopUsers(30, 10), staleTime: 600_000, enabled: !!full });
   const { data: heartbeat } = useQuery({ queryKey: ["heartbeat"], queryFn: () => api.getHeartbeatStats(7), staleTime: 600_000, enabled: !!full });
   const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats, staleTime: 600_000, enabled: !!full });
-  const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 3600_000, enabled: !!full });
+  const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 600_000, refetchInterval: 600_000, enabled: !!full });
 
   const PIE_COLORS = ["#10b981", "#f43f5e"];
 
@@ -279,6 +279,7 @@ export default function AnalyticsPage() {
             <div className="flex items-center gap-2">
               <Database className="w-4 h-4 text-blue-500" />
               <h3 className="text-[15px] font-bold">R2 Cloud Storage</h3>
+              <span className="text-[10px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">10 daqiqada yangilanadi</span>
             </div>
             <div className="text-right">
               <p className="text-lg font-extrabold tabular-nums">{storage.total_size_gb} GB <span className="text-[12px] font-normal text-muted-foreground">/ {storage.total_max_gb} GB</span></p>

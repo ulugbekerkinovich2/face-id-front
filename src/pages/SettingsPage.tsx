@@ -94,6 +94,15 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     },
   });
 
+  const clearHistoryMutation = useMutation({
+    mutationFn: () => api.clearMigrationHistory(),
+    onSuccess: () => {
+      setActiveJobId(null);
+      queryClient.invalidateQueries({ queryKey: ["migration-list"] });
+      queryClient.removeQueries({ queryKey: ["migration-status"] });
+    },
+  });
+
   const pct = jobData && jobData.total > 0 ? Math.round((jobData.copied / jobData.total) * 100) : 0;
   const speed = elapsed > 0 && jobData ? jobData.copied / elapsed : 0; // files/sec
   const eta = speed > 0 && jobData ? (jobData.total - jobData.copied) / speed : null;
@@ -347,7 +356,22 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
       {/* History */}
       {(historyData?.jobs ?? []).length > 0 && (
         <div>
-          <p className="text-[11px] font-semibold text-muted-foreground mb-2 uppercase tracking-wider">So'nggi migratsiyalar</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">So'nggi migratsiyalar</p>
+            <button
+              onClick={() => {
+                if (confirm("Tarix tozalansinmi? Faol task'larga ta'sir qilmaydi.")) {
+                  clearHistoryMutation.mutate();
+                }
+              }}
+              disabled={clearHistoryMutation.isPending}
+              className="h-6 px-2 text-[10px] font-medium rounded-md text-rose-600 hover:bg-rose-50 disabled:opacity-50 flex items-center gap-1"
+              title="Tarixni Redis'dan o'chirish"
+            >
+              {clearHistoryMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              Tozalash
+            </button>
+          </div>
           <div className="space-y-1.5">
             {(historyData?.jobs ?? []).slice(0, 5).map((j) => {
               const isActive = j.job_id === activeJobId;

@@ -295,6 +295,8 @@ export const api = {
     postApi<{ job_id: string; status: string }>(`/storage/migrate/${jobId}/cancel/`, {}),
   getMigrationStatus: (jobId: string) => fetchApi<MigrationJob>(`/storage/migrate/${jobId}/`),
   getMigrationList: () => fetchApi<{ jobs: (MigrationJob & { job_id: string })[] }>("/storage/migrate/list/"),
+  clearMigrationHistory: () =>
+    postApi<{ cleared: number }>("/storage/migrate/clear/", {}),
 
   bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
     const fd = new FormData();

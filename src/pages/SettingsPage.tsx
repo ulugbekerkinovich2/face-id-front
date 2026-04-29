@@ -11,11 +11,25 @@ import {
   XCircle, Clock, Zap, FileCheck2, X, Info,
 } from "lucide-react";
 
-const ACCOUNT_LABELS: Record<string, string> = {
-  primary: "Account 1 (primary)",
-  backup1: "Account 2 (backup1)",
-  backup2: "Account 3 (backup2)",
-};
+// Account label'lari dinamik — backend settings_info dan keladi (bu yerda
+// fallback'lar bor: agar storage stats yo'q bo'lsa, hech bo'lmaganda
+// account_key ko'rinadi).
+function makeAccountLabels(
+  accounts: Array<{ account_key?: string; name?: string }>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  accounts.forEach((a, i) => {
+    const key = a.account_key ?? a.name;
+    if (!key) return;
+    // Backend `name` allaqachon "Account N (xxx)" ko'rinishida keladi;
+    // bo'lmasa o'rniga to'qib chiqaramiz.
+    const label = a.name && /Account/.test(a.name)
+      ? a.name
+      : `Account ${i + 1}${key === "primary" ? " (primary)" : ` (${key})`}`;
+    out[key] = label;
+  });
+  return out;
+}
 
 function fmtDuration(secs: number) {
   if (secs < 60) return `${Math.round(secs)}s`;
@@ -43,10 +57,13 @@ interface StorageAccount {
 function MigrationSection({
   accountNames,
   storageAccounts,
+  accountLabels,
 }: {
   accountNames: string[];
   storageAccounts: StorageAccount[];
+  accountLabels: Record<string, string>;
 }) {
+  const ACCOUNT_LABELS = accountLabels;  // local alias — kod o'zgarishi minimal
   const queryClient = useQueryClient();
   const [source, setSource] = useState("");
   const [dest, setDest] = useState("");
@@ -749,6 +766,7 @@ R2_BACKUP3_BUCKET_NAME=bucket-name`}
       <MigrationSection
         accountNames={(storage?.accounts ?? info?.r2?.accounts ?? []).map((a: any) => a.account_key || a.name).filter(Boolean)}
         storageAccounts={storage?.accounts ?? []}
+        accountLabels={makeAccountLabels(storage?.accounts ?? info?.r2?.accounts ?? [])}
       />
 
       {/* Devices */}

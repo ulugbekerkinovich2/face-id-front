@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { api, MigrationJob } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,7 +8,7 @@ import {
   HardDrive, Database, Router, Cpu,
   Wifi, CheckCircle, AlertTriangle, ArrowRight,
   Loader2, MoveRight, RefreshCw, Copy, Trash2,
-  XCircle, Clock, Zap, FileCheck2, X,
+  XCircle, Clock, Zap, FileCheck2, X, Info,
 } from "lucide-react";
 
 const ACCOUNT_LABELS: Record<string, string> = {
@@ -22,14 +23,54 @@ function fmtDuration(secs: number) {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function MigrationSection({ accountNames }: { accountNames: string[] }) {
+function fmtBytes(b: number): string {
+  if (!b || b < 0) return "0 B";
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 ** 2) return `${(b / 1024).toFixed(1)} KB`;
+  if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1)} MB`;
+  return `${(b / 1024 ** 3).toFixed(2)} GB`;
+}
+
+interface StorageAccount {
+  name: string;
+  account_key?: string;
+  size_gb?: number;
+  max_gb?: number;
+  files?: number;
+  error?: string;
+}
+
+function MigrationSection({
+  accountNames,
+  storageAccounts,
+}: {
+  accountNames: string[];
+  storageAccounts: StorageAccount[];
+}) {
   const queryClient = useQueryClient();
   const [source, setSource] = useState("");
   const [dest, setDest] = useState("");
   const [maxGbInput, setMaxGbInput] = useState("");  // bo'sh = chegarasiz
+  const [deleteSource, setDeleteSource] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+
+  // Pre-flight ma'lumotlari — source/dest tanlanganda hisoblanadi.
+  const accByKey = (key: string) =>
+    storageAccounts.find((a) => (a.account_key ?? a.name) === key);
+  const srcAcc = source ? accByKey(source) : undefined;
+  const dstAcc = dest ? accByKey(dest) : undefined;
+  const sourceSizeGb = srcAcc?.size_gb ?? 0;
+  const sourceFiles = srcAcc?.files ?? 0;
+  const destFreeGb = Math.max(0, (dstAcc?.max_gb ?? 0) - (dstAcc?.size_gb ?? 0));
+
+  const maxGbNum = Number(maxGbInput.trim());
+  const maxGbValid = Number.isFinite(maxGbNum) && maxGbNum > 0 ? maxGbNum : null;
+  const effectiveCopyGb = maxGbValid ? Math.min(sourceSizeGb, maxGbValid) : sourceSizeGb;
+  const willOverflow = !!dstAcc && effectiveCopyGb > destFreeGb;
+  const willPartial = !!srcAcc && maxGbValid !== null && maxGbValid < sourceSizeGb;
 
   const { data: jobData } = useQuery({
     queryKey: ["migration-status", activeJobId],
@@ -65,33 +106,71 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     }
   }, [isRunning, jobData?.status]);
 
+  // Status transitions uchun toast — tugaganda foydalanuvchi xabardor bo'ladi
+  const lastStatusRef = useRef<string | null>(null);
   useEffect(() => {
     if (!jobData) return;
-    if (!ACTIVE_STATES.has(jobData.status)) {
+    const status = jobData.status;
+    if (lastStatusRef.current === status) return;
+    lastStatusRef.current = status;
+
+    if (!ACTIVE_STATES.has(status)) {
       queryClient.invalidateQueries({ queryKey: ["storage"] });
       queryClient.invalidateQueries({ queryKey: ["migration-list"] });
+    }
+
+    const tid = `mig-final-${activeJobId ?? "x"}`;
+    if (status === "done") {
+      toast.success(
+        `Migration tugadi — ${jobData.copied.toLocaleString()} fayl ko'chirildi`,
+        { id: tid, description: jobData.deleted ? `Manbadan ${jobData.deleted} ta o'chirildi` : undefined },
+      );
+    } else if (status === "partial") {
+      toast.warning(
+        `Qisman tugadi — ${jobData.copied} muvaffaqiyatli, ${jobData.failed} xato`,
+        { id: tid },
+      );
+    } else if (status === "stopped_max_gb") {
+      toast.info(
+        `Limit yetdi — ${jobData.copied} fayl ko'chirildi, ${jobData.remaining_keys ?? 0} qoldi`,
+        { id: tid },
+      );
+    } else if (status === "cancelled") {
+      toast.info(`To'xtatildi — ${jobData.copied} fayl ko'chirilgan`, { id: tid });
+    } else if (status === "error") {
+      toast.error(`Xato: ${jobData.error ?? "noma'lum"}`, { id: tid });
     }
   }, [jobData?.status]);
 
   const mutation = useMutation({
-    mutationFn: () => {
-      const n = Number(maxGbInput.trim());
-      const maxGb = Number.isFinite(n) && n > 0 ? n : null;
-      return api.startMigration(source, dest, { maxGb });
-    },
+    mutationFn: () =>
+      api.startMigration(source, dest, {
+        maxGb: maxGbValid,
+        deleteSource,
+      }),
+    onMutate: () => toast.loading("Migration ishga tushirilmoqda...", { id: "mig-start" }),
     onSuccess: (res) => {
       setActiveJobId(res.job_id);
       startedAtRef.current = Date.now();
       setElapsed(0);
+      setShowConfirm(false);
+      toast.success(
+        `Migration boshlandi${maxGbValid ? ` (max ${maxGbValid} GB)` : ""}`,
+        { id: "mig-start" },
+      );
       queryClient.invalidateQueries({ queryKey: ["migration-list"] });
     },
+    onError: (e: any) => toast.error(`Boshlanmadi: ${e?.message ?? "xato"}`, { id: "mig-start" }),
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => api.cancelMigration(activeJobId!),
+    onMutate: () => toast.loading("To'xtatilmoqda — copied fayllar manbadan o'chiriladi", { id: "mig-cancel" }),
     onSuccess: () => {
+      toast.success("Cancel signali yuborildi", { id: "mig-cancel" });
       queryClient.invalidateQueries({ queryKey: ["migration-status", activeJobId] });
     },
+    onError: () => toast.error("To'xtata olmadi", { id: "mig-cancel" }),
   });
 
   const clearHistoryMutation = useMutation({
@@ -187,7 +266,7 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
         </div>
         {!isRunning ? (
           <button
-            onClick={() => mutation.mutate()}
+            onClick={() => setShowConfirm(true)}
             disabled={!source || !dest || mutation.isPending}
             className="h-9 px-4 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
@@ -208,6 +287,127 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
           </button>
         )}
       </div>
+
+      {/* Pre-flight — Ko'chirish bosishdan oldin holatni ko'rsatadi */}
+      {!isRunning && source && dest && srcAcc && dstAcc && (
+        <div className={`rounded-xl border p-3 mb-4 text-[12px] ${
+          willOverflow ? "border-rose-200 bg-rose-50/40"
+          : willPartial ? "border-amber-200 bg-amber-50/40"
+          : "border-blue-200 bg-blue-50/30"
+        }`}>
+          <div className="flex items-center gap-2 mb-2">
+            <Info className={`w-3.5 h-3.5 ${
+              willOverflow ? "text-rose-500" : willPartial ? "text-amber-500" : "text-blue-500"
+            }`} />
+            <span className="font-semibold">
+              {willOverflow ? "Diqqat: dest'da bo'sh joy yetmaydi"
+                : willPartial ? `Limit: ${maxGbValid} GB ko'chiriladi, qoldig'i ${ACCOUNT_LABELS[source]}'da qoladi`
+                : "Tayyor"}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-[11px]">
+            <div>
+              <p className="text-muted-foreground mb-0.5">Manba ({ACCOUNT_LABELS[source] ?? source})</p>
+              <p className="font-bold tabular-nums">{sourceSizeGb.toFixed(2)} GB</p>
+              <p className="text-muted-foreground tabular-nums">{sourceFiles.toLocaleString()} fayl</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Ko'chiriladi</p>
+              <p className={`font-bold tabular-nums ${willOverflow ? "text-rose-600" : ""}`}>
+                {effectiveCopyGb.toFixed(2)} GB
+              </p>
+              {willPartial && <p className="text-amber-600 text-[10px]">{(sourceSizeGb - effectiveCopyGb).toFixed(2)} GB qoladi</p>}
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-0.5">Manzil bo'sh joyi</p>
+              <p className={`font-bold tabular-nums ${willOverflow ? "text-rose-600" : "text-emerald-600"}`}>
+                {destFreeGb.toFixed(2)} GB
+              </p>
+              <p className="text-muted-foreground tabular-nums">
+                {(dstAcc.size_gb ?? 0).toFixed(1)} / {(dstAcc.max_gb ?? 0).toFixed(0)} GB ishlatilgan
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowConfirm(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="p-5 border-b border-border/30">
+              <h3 className="text-base font-bold">Migrationni boshlash</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Tasdiqlashdan keyin ko'chirish boshlanadi</p>
+            </div>
+            <div className="p-5 space-y-3 text-[13px]">
+              <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                <span className="text-muted-foreground">Manba</span>
+                <span className="font-semibold">{ACCOUNT_LABELS[source] ?? source}</span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                <span className="text-muted-foreground">Manzil</span>
+                <span className="font-semibold">{ACCOUNT_LABELS[dest] ?? dest}</span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                <span className="text-muted-foreground">Ko'chiriladi</span>
+                <span className="font-semibold tabular-nums">
+                  {effectiveCopyGb.toFixed(2)} GB
+                  {sourceFiles > 0 && <span className="text-muted-foreground ml-2">({sourceFiles.toLocaleString()} fayl)</span>}
+                </span>
+              </div>
+              {maxGbValid && (
+                <div className="flex items-center justify-between py-1.5 border-b border-border/20">
+                  <span className="text-muted-foreground">Max GB chegarasi</span>
+                  <span className="font-semibold">{maxGbValid} GB</span>
+                </div>
+              )}
+
+              <label className="flex items-start gap-2.5 pt-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={deleteSource}
+                  onChange={(e) => setDeleteSource(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-violet-600"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-[12px]">Manbadan o'chirish</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {deleteSource
+                      ? "Muvaffaqiyatli ko'chirilgan fayllar manbadan o'chiriladi (duplicate yo'q)"
+                      : "⚠ Fayllar har ikkala account'da qoladi (duplicate)"}
+                  </p>
+                </div>
+              </label>
+
+              {willOverflow && (
+                <div className="flex items-start gap-2 p-2.5 rounded-lg bg-rose-50 border border-rose-200">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-rose-700">
+                    Manzil bo'sh joyi yetmaydi: kerak {effectiveCopyGb.toFixed(2)} GB, bor {destFreeGb.toFixed(2)} GB.
+                    Max GB chegarasini kichikroq qiling yoki boshqa account tanlang.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 p-5 pt-0">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="flex-1 h-10 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted"
+              >
+                Bekor
+              </button>
+              <button
+                onClick={() => mutation.mutate()}
+                disabled={mutation.isPending || willOverflow}
+                className="flex-1 h-10 rounded-lg text-sm font-semibold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <MoveRight className="w-4 h-4" />}
+                Boshlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Active job — detailed progress */}
       {activeJobId && jobData && (
@@ -238,6 +438,11 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
               <div className="flex items-center justify-between text-[11px] mb-1.5">
                 <span className="font-semibold tabular-nums">
                   {jobData.copied.toLocaleString()} / {jobData.total.toLocaleString()} fayl
+                  {jobData.total_bytes ? (
+                    <span className="text-muted-foreground ml-2 font-normal">
+                      ({fmtBytes(jobData.copied_bytes ?? 0)} / {fmtBytes(jobData.total_bytes)})
+                    </span>
+                  ) : null}
                 </span>
                 <span className="font-bold tabular-nums">{pct}%</span>
               </div>
@@ -300,13 +505,20 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
 
           {/* Speed / ETA / Elapsed */}
           {isRunning && elapsed > 0 && (
-            <div className="flex items-center gap-4 px-4 pb-3 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-4 px-4 pb-3 text-[11px] text-muted-foreground flex-wrap">
               <div className="flex items-center gap-1">
                 <Zap className="w-3 h-3 text-violet-500" />
                 <span className="tabular-nums font-medium">
                   {speed >= 1 ? `${speed.toFixed(1)} fayl/s` : `${(speed * 60).toFixed(1)} fayl/min`}
                 </span>
               </div>
+              {jobData.copied_bytes !== undefined && jobData.copied_bytes > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="tabular-nums font-medium text-violet-600">
+                    {fmtBytes(jobData.copied_bytes / elapsed)}/s
+                  </span>
+                </div>
+              )}
               {eta !== null && eta > 0 && (
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3 text-blue-400" />
@@ -534,7 +746,10 @@ R2_BACKUP3_BUCKET_NAME=bucket-name`}
       </div>
 
       {/* Migration */}
-      <MigrationSection accountNames={(storage?.accounts ?? info?.r2?.accounts ?? []).map((a: any) => a.account_key || a.name).filter(Boolean)} />
+      <MigrationSection
+        accountNames={(storage?.accounts ?? info?.r2?.accounts ?? []).map((a: any) => a.account_key || a.name).filter(Boolean)}
+        storageAccounts={storage?.accounts ?? []}
+      />
 
       {/* Devices */}
       <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "100ms" }}>

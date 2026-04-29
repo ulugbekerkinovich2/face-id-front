@@ -7,7 +7,7 @@ import {
   HardDrive, Database, Router, Cpu,
   Wifi, CheckCircle, AlertTriangle, ArrowRight,
   Loader2, MoveRight, RefreshCw, Copy, Trash2,
-  XCircle, Clock, Zap, FileCheck2,
+  XCircle, Clock, Zap, FileCheck2, X,
 } from "lucide-react";
 
 const ACCOUNT_LABELS: Record<string, string> = {
@@ -26,6 +26,7 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
   const queryClient = useQueryClient();
   const [source, setSource] = useState("");
   const [dest, setDest] = useState("");
+  const [maxGbInput, setMaxGbInput] = useState("");  // bo'sh = chegarasiz
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -36,7 +37,9 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     enabled: !!activeJobId,
     refetchInterval: (q) => {
       const s = q.state.data?.status;
-      return s === "running" || s === "listing" || s === "queued" ? 2000 : false;
+      const active = s === "running" || s === "listing" || s === "queued"
+        || s === "deleting" || s === "cancelling";
+      return active ? 2000 : false;
     },
   });
 
@@ -46,29 +49,36 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     staleTime: 10_000,
   });
 
+  const ACTIVE_STATES = new Set([
+    "queued", "listing", "running", "deleting", "cancelling",
+  ]);
+  const isRunning = !!jobData && ACTIVE_STATES.has(jobData.status);
+
   // Elapsed timer
   useEffect(() => {
-    const isRunning = jobData?.status === "running" || jobData?.status === "listing" || jobData?.status === "queued";
     if (isRunning) {
       if (!startedAtRef.current) startedAtRef.current = Date.now();
       const id = setInterval(() => setElapsed(Math.floor((Date.now() - startedAtRef.current!) / 1000)), 1000);
       return () => clearInterval(id);
-    } else {
-      if (jobData?.status === "done" || jobData?.status === "partial" || jobData?.status === "error") {
-        startedAtRef.current = null;
-      }
+    } else if (jobData && !ACTIVE_STATES.has(jobData.status)) {
+      startedAtRef.current = null;
     }
-  }, [jobData?.status]);
+  }, [isRunning, jobData?.status]);
 
   useEffect(() => {
-    if (jobData?.status === "done" || jobData?.status === "partial") {
+    if (!jobData) return;
+    if (!ACTIVE_STATES.has(jobData.status)) {
       queryClient.invalidateQueries({ queryKey: ["storage"] });
       queryClient.invalidateQueries({ queryKey: ["migration-list"] });
     }
   }, [jobData?.status]);
 
   const mutation = useMutation({
-    mutationFn: () => api.startMigration(source, dest),
+    mutationFn: () => {
+      const n = Number(maxGbInput.trim());
+      const maxGb = Number.isFinite(n) && n > 0 ? n : null;
+      return api.startMigration(source, dest, { maxGb });
+    },
     onSuccess: (res) => {
       setActiveJobId(res.job_id);
       startedAtRef.current = Date.now();
@@ -77,7 +87,13 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     },
   });
 
-  const isRunning = jobData?.status === "running" || jobData?.status === "listing" || jobData?.status === "queued";
+  const cancelMutation = useMutation({
+    mutationFn: () => api.cancelMigration(activeJobId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["migration-status", activeJobId] });
+    },
+  });
+
   const pct = jobData && jobData.total > 0 ? Math.round((jobData.copied / jobData.total) * 100) : 0;
   const speed = elapsed > 0 && jobData ? jobData.copied / elapsed : 0; // files/sec
   const eta = speed > 0 && jobData ? (jobData.total - jobData.copied) / speed : null;
@@ -86,16 +102,24 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
     done: "text-emerald-600", partial: "text-amber-600",
     error: "text-rose-600", running: "text-blue-600",
     listing: "text-blue-500", queued: "text-muted-foreground",
+    deleting: "text-violet-600", cancelling: "text-amber-600",
+    cancelled: "text-rose-500", stopped_max_gb: "text-amber-700",
   };
   const statusBg: Record<string, string> = {
     done: "bg-emerald-500", partial: "bg-amber-500",
     error: "bg-rose-500", running: "bg-violet-500",
     listing: "bg-blue-400", queued: "bg-slate-300",
+    deleting: "bg-violet-400", cancelling: "bg-amber-400",
+    cancelled: "bg-rose-400", stopped_max_gb: "bg-amber-500",
   };
   const statusLabel: Record<string, string> = {
     done: "✓ Muvaffaqiyatli ko'chirildi", partial: "⚠ Qisman bajarildi",
     error: "✗ Xato yuz berdi", running: "Ko'chirilmoqda...",
     listing: "Fayllar sanalimoqda...", queued: "Navbatda...",
+    deleting: "Manbadan o'chirilmoqda...",
+    cancelling: "To'xtatilmoqda...",
+    cancelled: "✗ To'xtatildi",
+    stopped_max_gb: "⏹ Limit (max GB) yetdi",
   };
 
   return (
@@ -137,14 +161,43 @@ function MigrationSection({ accountNames }: { accountNames: string[] }) {
             {accountNames.filter((n) => n !== source).map((n) => <option key={n} value={n}>{ACCOUNT_LABELS[n] ?? n}</option>)}
           </select>
         </div>
-        <button
-          onClick={() => mutation.mutate()}
-          disabled={!source || !dest || isRunning || mutation.isPending}
-          className="h-9 px-4 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-        >
-          {(isRunning || mutation.isPending) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MoveRight className="w-3.5 h-3.5" />}
-          Ko'chirish
-        </button>
+        <div className="w-28">
+          <label className="text-[11px] text-muted-foreground font-medium mb-1 block" title="Bu rundagi maksimal ko'chirish hajmi">
+            Max GB
+          </label>
+          <input
+            type="number"
+            min={0}
+            step={0.5}
+            placeholder="hammasi"
+            value={maxGbInput}
+            onChange={(e) => setMaxGbInput(e.target.value)}
+            disabled={isRunning}
+            className="w-full h-9 px-2.5 text-sm rounded-lg border border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+        {!isRunning ? (
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!source || !dest || mutation.isPending}
+            className="h-9 px-4 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+          >
+            {mutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MoveRight className="w-3.5 h-3.5" />}
+            Ko'chirish
+          </button>
+        ) : (
+          <button
+            onClick={() => cancelMutation.mutate()}
+            disabled={cancelMutation.isPending || jobData?.status === "cancelling"}
+            className="h-9 px-4 text-sm font-semibold rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            title="Migrationni to'xtatish — copied fayllar manbada o'chiriladi (duplicate yo'q)"
+          >
+            {cancelMutation.isPending || jobData?.status === "cancelling"
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <X className="w-3.5 h-3.5" />}
+            To'xtatish
+          </button>
+        )}
       </div>
 
       {/* Active job — detailed progress */}

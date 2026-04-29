@@ -182,15 +182,24 @@ export interface CardLogEntry {
 
 export interface MigrationJob {
   job_id?: string;
-  status: "queued" | "listing" | "running" | "done" | "partial" | "error";
+  status:
+    | "queued" | "listing" | "running"
+    | "deleting" | "cancelling"
+    | "done" | "partial" | "error"
+    | "stopped_max_gb" | "cancelled";
   source: string;
   dest: string;
   total: number;
+  total_bytes?: number;
   copied: number;
+  copied_bytes?: number;
   failed: number;
   deleted: number;
   errors?: { key: string; error: string }[];
   error?: string;
+  max_gb?: number | null;
+  remaining_keys?: number;
+  updated_at?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -276,8 +285,14 @@ export const api = {
   }>("/users/check/", { name }),
 
   // R2 Migration
-  startMigration: (source: string, dest: string, deleteSource = true) =>
-    postApi<{ job_id: string; status: string }>("/storage/migrate/", { source, dest, delete_source: deleteSource }),
+  startMigration: (source: string, dest: string, opts: { deleteSource?: boolean; maxGb?: number | null } = {}) =>
+    postApi<{ job_id: string; status: string; max_gb?: number | null }>("/storage/migrate/", {
+      source, dest,
+      delete_source: opts.deleteSource ?? true,
+      max_gb: opts.maxGb ?? null,
+    }),
+  cancelMigration: (jobId: string) =>
+    postApi<{ job_id: string; status: string }>(`/storage/migrate/${jobId}/cancel/`, {}),
   getMigrationStatus: (jobId: string) => fetchApi<MigrationJob>(`/storage/migrate/${jobId}/`),
   getMigrationList: () => fetchApi<{ jobs: (MigrationJob & { job_id: string })[] }>("/storage/migrate/list/"),
 

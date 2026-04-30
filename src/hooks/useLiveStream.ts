@@ -34,9 +34,16 @@ export function useLiveStream<T = any>(
   const channelsKey = channels.join(",");
 
   useEffect(() => {
-    if (!channels.length) return;
+    if (!channels.length) {
+      console.warn("[ws] no channels, skipping connection");
+      return;
+    }
     const token = localStorage.getItem("authToken");
-    if (!token) return;
+    if (!token) {
+      console.warn("[ws] no authToken in localStorage, skipping");
+      return;
+    }
+    console.info("[ws] connecting", { url: wsUrl(channels, token).replace(/token=[^&]+/, "token=***") });
 
     let ws: WebSocket | null = null;
     let reconnectTid: number | null = null;
@@ -54,8 +61,8 @@ export function useLiveStream<T = any>(
       }
 
       ws.onopen = () => {
+        console.info("[ws] connected");
         attempt = 0;
-        // Keep-alive — 25s ping
         pingTid = window.setInterval(() => {
           ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ type: "ping" }));
         }, 25_000);
@@ -72,12 +79,13 @@ export function useLiveStream<T = any>(
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
+        console.warn("[ws] closed", { code: e.code, reason: e.reason });
         if (pingTid) { clearInterval(pingTid); pingTid = null; }
         scheduleReconnect();
       };
 
-      ws.onerror = () => { /* close handles cleanup */ };
+      ws.onerror = () => { console.warn("[ws] error"); };
     };
 
     const scheduleReconnect = () => {

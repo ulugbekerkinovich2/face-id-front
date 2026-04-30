@@ -6,6 +6,8 @@ import {
   Ghost, Trash2, Calendar, ChevronLeft, ChevronRight,
   ArrowDownToLine, ArrowUpFromLine, X, Eye, Loader2,
 } from "lucide-react";
+import { useNewIds } from "@/hooks/useNewIds";
+import { useLiveStream } from "@/hooks/useLiveStream";
 
 export default function StrangersPage() {
   const queryClient = useQueryClient();
@@ -13,11 +15,36 @@ export default function StrangersPage() {
   const [date, setDate] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
 
+  const queryKey = ["strangers", page, date] as const;
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["strangers", page, date],
+    queryKey,
     queryFn: () => api.getStrangers({ page, per_page: 24, date }),
     placeholderData: (prev: any) => prev,
   });
+
+  // WebSocket — yangi notanish yuz kelganda 1-sahifaga prepend
+  useLiveStream<{ id: number; device_id: number; create_time: string; image: string }>(
+    ["strangers"],
+    (ev) => {
+      if (ev.channel !== "strangers") return;
+      const stranger = ev.data;
+      if (page === 1 && !date) {
+        queryClient.setQueryData<any>(queryKey, (old: any) => {
+          if (!old) return old;
+          if (old.data?.some((s: any) => s.id === stranger.id)) return old;
+          return {
+            ...old,
+            total: (old.total ?? 0) + 1,
+            data: [stranger, ...old.data].slice(0, old.per_page ?? 24),
+          };
+        });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["strangers"] });
+      }
+    },
+  );
+
+  const newIds = useNewIds(data?.data, (s: any) => s.id, 3000);
 
   const deleteMutation = useMutation({
     mutationFn: api.deleteStranger,
@@ -60,9 +87,14 @@ export default function StrangersPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-          {(data?.data ?? []).map((s, i) => (
-            <div key={s.id} className="animate-in bg-white rounded-xl border border-border/40 overflow-hidden group hover:shadow-md transition-all"
-              style={{ animationDelay: `${i * 30}ms` }}>
+          {(data?.data ?? []).map((s, i) => {
+            const isNew = newIds.has(s.id);
+            return (
+            <div key={s.id}
+              className={`bg-white rounded-xl border border-border/40 overflow-hidden group hover:shadow-md transition-all ${
+                isNew ? "flash-new" : "animate-in"
+              }`}
+              style={isNew ? undefined : { animationDelay: `${i * 30}ms` }}>
               {/* Image */}
               <div className="aspect-square bg-muted/30 relative">
                 {s.image ? (
@@ -107,7 +139,8 @@ export default function StrangersPage() {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
       </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
@@ -7,6 +7,8 @@ import {
   Loader2, User, Clock, Briefcase, CalendarRange,
 } from "lucide-react";
 import AttendanceSheet from "@/components/AttendanceSheet";
+import { useNewIds } from "@/hooks/useNewIds";
+import { useLiveStream } from "@/hooks/useLiveStream";
 
 const DOOR_LABEL: Record<number, string> = {
   2489019: "1-eshik", 2489007: "2-eshik", 2489005: "3-eshik",
@@ -38,12 +40,51 @@ export default function LogsPage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
+  const queryKey = ["logs", page, search, date, dateFrom, dateTo, direction, role, timeFrom, timeTo] as const;
+
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["logs", page, search, date, dateFrom, dateTo, direction, role, timeFrom, timeTo],
+    queryKey,
     queryFn: () => api.getLogs({ page, per_page: 24, search, date, date_from: dateFrom, date_to: dateTo, direction, role, time_from: timeFrom, time_to: timeTo }),
     staleTime: 15_000,
     placeholderData: (prev: any) => prev,
+    // WebSocket orqali real-time keladi — polling kerak emas
   });
+
+  // WebSocket — server post_save signal'idan kelgan yangi log'lar
+  // 1-sahifada va filter yo'q bo'lsagina prepend qilamiz (boshqa view'da
+  // tartib buzilmaslik uchun cache invalidate qilinadi).
+  useLiveStream<{
+    id: number; name: string; face_id: number; direction: "IN" | "OUT" | "UNKNOWN";
+    similarity: number; time: string; image: string; is_blocked: boolean;
+  }>(["logs"], (ev) => {
+    if (ev.channel !== "logs") return;
+    const log = ev.data;
+
+    // Filter mosligini tekshirish
+    const matchesFilters =
+      page === 1 &&
+      !search && !date && !dateFrom && !dateTo && !timeFrom && !timeTo &&
+      (!direction || log.direction === direction);
+
+    if (matchesFilters) {
+      queryClient.setQueryData<any>(queryKey, (old: any) => {
+        if (!old) return old;
+        if (old.data?.some((l: any) => l.id === log.id)) return old;  // duplicate
+        return {
+          ...old,
+          total: (old.total ?? 0) + 1,
+          data: [log, ...old.data].slice(0, old.per_page ?? 24),
+        };
+      });
+    } else {
+      // Boshqa sahifada/filtrda — log mosligi noma'lum, query'ni invalidate
+      queryClient.invalidateQueries({ queryKey: ["logs"] });
+    }
+  });
+
+  // Yangi keladigan log'larni vizual flash bilan ajratamiz
+  const newIds = useNewIds(data?.data, (l: any) => l.id, 3000);
 
   const { data: rolesData } = useQuery({
     queryKey: ["roles"],
@@ -211,13 +252,17 @@ export default function LogsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
-            {(data?.data ?? []).map((log, i) => (
+            {(data?.data ?? []).map((log, i) => {
+              const isNew = newIds.has(log.id);
+              return (
               <div
                 key={log.id}
-                className={`animate-in bg-white rounded-xl border overflow-hidden group hover:shadow-md transition-all ${
+                className={`bg-white rounded-xl border overflow-hidden group hover:shadow-md transition-all ${
+                  isNew ? "flash-new" : "animate-in"
+                } ${
                   log.is_blocked ? "border-rose-200 ring-1 ring-rose-200" : "border-border/40"
                 }`}
-                style={{ animationDelay: `${i * 20}ms` }}
+                style={isNew ? undefined : { animationDelay: `${i * 20}ms` }}
               >
                 {/* Image */}
                 <div className="aspect-[3/4] bg-muted/30 relative">
@@ -306,7 +351,8 @@ export default function LogsPage() {
                   </p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

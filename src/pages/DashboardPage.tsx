@@ -20,6 +20,10 @@ import { LateTrendChart } from "@/components/dashboard/LateTrendChart";
 import { MostActiveUsers } from "@/components/dashboard/MostActiveUsers";
 import { LivePulseBadge } from "@/components/dashboard/LivePulseBadge";
 import { ImageLightbox } from "@/components/dashboard/ImageLightbox";
+import { DepartmentBreakdown } from "@/components/dashboard/DepartmentBreakdown";
+import { GoalGauge } from "@/components/dashboard/GoalGauge";
+import { LiveEntryPopup } from "@/components/dashboard/LiveEntryPopup";
+import { SoundToggle, playBeep } from "@/components/dashboard/SoundToggle";
 
 function Num({ value, className = "" }: { value: number; className?: string }) {
   const v = useAnimatedNumber(value);
@@ -170,6 +174,7 @@ export default function DashboardPage() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [eventCount, setEventCount] = useState(0);
+  const [popupEvent, setPopupEvent] = useState<any>(null);
   const queryClient = useQueryClient();
 
   const { data: stats, isLoading, dataUpdatedAt } = useQuery({
@@ -179,12 +184,17 @@ export default function DashboardPage() {
     staleTime: 15_000,
   });
 
-  // Yangi log/stranger kelganda stats'ni yangilash + counter
-  useLiveStream<any>(["logs", "strangers"], () => {
+  // Yangi log/stranger kelganda stats'ni yangilash + counter + popup + sound
+  useLiveStream<any>(["logs", "strangers"], (ev) => {
     setEventCount((c) => c + 1);
     queryClient.invalidateQueries({ queryKey: ["stats"] });
     queryClient.invalidateQueries({ queryKey: ["wow-stats"] });
     queryClient.invalidateQueries({ queryKey: ["inside"] });
+
+    if (ev.channel === "logs" && ev.data) {
+      setPopupEvent(ev.data);
+      playBeep(ev.data.direction);
+    }
   });
 
   const { data: wow } = useQuery({
@@ -277,6 +287,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <SoundToggle />
           <LivePulseBadge count={eventCount} countLabel="ulanish" />
         </div>
       </div>
@@ -441,8 +452,37 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Goal gauge + Departments breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
+        <div className="count-up bg-white rounded-2xl border border-border/50 p-5 flex flex-col items-center" style={{ animationDelay: "700ms" }}>
+          <div className="self-start mb-2">
+            <h3 className="text-[14px] font-bold">Bugungi maqsad</h3>
+            <p className="text-[11px] text-muted-foreground">90% davomad</p>
+          </div>
+          {wow?.goal && (
+            <GoalGauge
+              target={wow.goal.target}
+              achieved={wow.goal.achieved}
+              pct={wow.goal.pct}
+              remaining={wow.goal.remaining}
+              comparePct={wow?.compare?.delta_pct ?? null}
+            />
+          )}
+        </div>
+
+        <div className="count-up bg-white rounded-2xl border border-border/50 p-5" style={{ animationDelay: "780ms" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[14px] font-bold">Bo'limlar bo'yicha</h3>
+              <p className="text-[11px] text-muted-foreground">Bugun kelgan • qizil chiziq — kech qolganlar</p>
+            </div>
+          </div>
+          <DepartmentBreakdown items={wow?.departments ?? []} />
+        </div>
+      </div>
+
       {/* Most active users — full row */}
-      <div className="count-up bg-gradient-to-br from-amber-50/40 via-white to-orange-50/40 rounded-2xl border border-amber-100 p-6" style={{ animationDelay: "700ms" }}>
+      <div className="count-up bg-gradient-to-br from-amber-50/40 via-white to-orange-50/40 rounded-2xl border border-amber-100 p-6" style={{ animationDelay: "860ms" }}>
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="text-[15px] font-bold flex items-center gap-2">
@@ -504,6 +544,9 @@ export default function DashboardPage() {
 
       {/* Image lightbox */}
       <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />
+
+      {/* Real-time entry popup — yangi log kelganda 3.5s davomida ekran tepasida */}
+      <LiveEntryPopup event={popupEvent} onClose={() => setPopupEvent(null)} />
     </div>
   );
 }

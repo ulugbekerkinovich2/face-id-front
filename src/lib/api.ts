@@ -79,6 +79,9 @@ export interface WowStats {
   top_late: Array<{ name: string; time: string; image: string; late_minutes: number }>;
   late_trend: Array<{ date: string; total: number; late: number; pct: number }>;
   most_active: Array<{ name: string; count: number; image: string }>;
+  departments?: Array<{ role: string; came: number; late: number }>;
+  goal?: { target: number; achieved: number; pct: number; remaining: number };
+  compare?: { today_came: number; yesterday_came: number; delta: number; delta_pct: number | null };
 }
 
 export interface Device {

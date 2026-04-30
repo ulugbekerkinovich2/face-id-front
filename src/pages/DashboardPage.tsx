@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, LiveFeedEntry } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import {
@@ -9,6 +9,9 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useState, useEffect, useRef } from "react";
+import { useNewIds } from "@/hooks/useNewIds";
+import { useLiveStream } from "@/hooks/useLiveStream";
+import { useFlipChildren } from "@/hooks/useFlipChildren";
 
 function Num({ value, className = "" }: { value: number; className?: string }) {
   const v = useAnimatedNumber(value);
@@ -37,31 +40,31 @@ function initials(name: string) {
 
 function LiveFeedTicker() {
   const [items, setItems] = useState<LiveFeedEntry[]>([]);
-  const [newIds, setNewIds] = useState<Set<number>>(new Set());
-  const latestId = useRef(0);
 
+  // Initial load — bir martalik
   const { data } = useQuery({
     queryKey: ["live-feed"],
     queryFn: () => api.getLiveFeed(10, 0),
-    refetchInterval: 8_000,
-    staleTime: 5_000,
+    staleTime: 60_000,  // WS bilan yangilanadi, polling kerak emas
   });
 
   useEffect(() => {
-    if (!data?.data?.length) return;
-    if (latestId.current === 0) {
+    if (data?.data?.length && items.length === 0) {
       setItems(data.data);
-      latestId.current = data.latest_id;
-      return;
-    }
-    const fresh = data.data.filter((e) => e.id > latestId.current);
-    if (fresh.length > 0) {
-      setNewIds(new Set(fresh.map((e) => e.id)));
-      setItems((prev) => [...fresh, ...prev].slice(0, 10));
-      latestId.current = data.latest_id;
-      setTimeout(() => setNewIds(new Set()), 2000);
     }
   }, [data]);
+
+  // WebSocket — yangi log kelganda prepend
+  useLiveStream<LiveFeedEntry>(["logs"], (ev) => {
+    if (ev.channel !== "logs") return;
+    setItems((prev) => {
+      if (prev.some((p) => p.id === ev.data.id)) return prev;
+      return [ev.data, ...prev].slice(0, 10);
+    });
+  });
+
+  const newIds = useNewIds(items, (e: any) => e.id, 2500);
+  const listRef = useFlipChildren<HTMLDivElement>([items]);
 
   if (!items.length) return null;
 
@@ -75,18 +78,18 @@ function LiveFeedTicker() {
           </span>
           <h3 className="text-[14px] font-bold">Jonli kirish/chiqish</h3>
         </div>
-        <span className="text-[10px] text-muted-foreground">8 soniyada yangilanadi</span>
+        <span className="text-[10px] text-emerald-600 font-semibold">REAL-TIME</span>
       </div>
 
-      <div className="space-y-1.5">
+      <div ref={listRef} className="space-y-1.5">
         {items.map((entry) => {
           const isNew = newIds.has(entry.id);
           const isIn = entry.direction === "IN";
           return (
             <div
               key={entry.id}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-all duration-500 ${
-                isNew ? "bg-emerald-50 ring-1 ring-emerald-200 scale-[1.01]" : "hover:bg-muted/40"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-all ${
+                isNew ? "flash-new bg-violet-50/50" : "hover:bg-muted/40"
               }`}
             >
               {/* Avatar */}
@@ -157,12 +160,19 @@ function LiveBadge({ updatedAt }: { updatedAt: Date | null }) {
 
 export default function DashboardPage() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: stats, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["stats"],
     queryFn: api.getStats,
     refetchInterval: 30_000,
     staleTime: 15_000,
+  });
+
+  // Yangi log/stranger kelganda stats'ni yangilash
+  useLiveStream<any>(["logs", "strangers"], () => {
+    queryClient.invalidateQueries({ queryKey: ["stats"] });
+    queryClient.invalidateQueries({ queryKey: ["inside"] });
   });
 
   const { data: insideData } = useQuery({

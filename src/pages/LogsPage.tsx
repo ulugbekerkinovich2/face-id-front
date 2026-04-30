@@ -9,6 +9,7 @@ import {
 import AttendanceSheet from "@/components/AttendanceSheet";
 import { useNewIds } from "@/hooks/useNewIds";
 import { useLiveStream } from "@/hooks/useLiveStream";
+import { useFlipChildren } from "@/hooks/useFlipChildren";
 
 const DOOR_LABEL: Record<number, string> = {
   2489019: "1-eshik", 2489007: "2-eshik", 2489005: "3-eshik",
@@ -85,6 +86,8 @@ export default function LogsPage() {
 
   // Yangi keladigan log'larni vizual flash bilan ajratamiz
   const newIds = useNewIds(data?.data, (l: any) => l.id, 3000);
+  // Yangi karta qo'shilganda boshqalari siljishi animate bo'lsin
+  const gridRef = useFlipChildren<HTMLDivElement>([data?.data]);
 
   const { data: rolesData } = useQuery({
     queryKey: ["roles"],
@@ -251,7 +254,7 @@ export default function LogsPage() {
             <p className="text-sm text-muted-foreground">Ma'lumot topilmadi</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
+          <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
             {(data?.data ?? []).map((log, i) => {
               const isNew = newIds.has(log.id);
               return (

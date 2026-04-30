@@ -1,8 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, InsideEntry } from "@/lib/api";
 import { Users, X, Eye, User, Loader2, Clock } from "lucide-react";
 import { useState } from "react";
 import AttendanceSheet from "@/components/AttendanceSheet";
+import { useNewIds } from "@/hooks/useNewIds";
+import { useLiveStream } from "@/hooks/useLiveStream";
+import { useFlipChildren } from "@/hooks/useFlipChildren";
 
 function timeAgo(iso: string) {
   const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -21,15 +24,28 @@ export default function InsidePage() {
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["inside"],
     queryFn: api.getInsideNow,
+    // Polling kamaytirilgan — WS orqali real-time keladi
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
 
+  // Yangi log kelganda Inside ro'yxatini yangilash — IN bo'lsa qo'shamiz, OUT bo'lsa olib tashlaymiz
+  useLiveStream<{ id: number; name: string; direction: "IN" | "OUT" | "UNKNOWN" }>(
+    ["logs"],
+    () => {
+      // Inside count IN/OUT ga bog'liq — query'ni invalidate qilamiz
+      queryClient.invalidateQueries({ queryKey: ["inside"] });
+    },
+  );
+
   const count = data?.count ?? 0;
   const list: InsideEntry[] = data?.data ?? [];
+  const newIds = useNewIds(list, (e: any) => e.id || `${e.name}-${e.last_seen}`, 3000);
+  const gridRef = useFlipChildren<HTMLDivElement>([list]);
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -85,12 +101,17 @@ export default function InsidePage() {
           <p className="text-sm text-muted-foreground/40 mt-1">Yangilanish har 60 soniyada</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-          {list.map((person, i) => (
+        <div ref={gridRef} className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+          {list.map((person, i) => {
+            const personId = (person as any).id || `${person.name}-${(person as any).last_seen}`;
+            const isNew = newIds.has(personId);
+            return (
             <div
               key={person.name}
-              className="animate-in bg-white rounded-xl border border-emerald-100 ring-1 ring-emerald-100 overflow-hidden group hover:shadow-lg hover:shadow-emerald-500/10 transition-all"
-              style={{ animationDelay: `${i * 25}ms` }}
+              className={`bg-white rounded-xl border border-emerald-100 ring-1 ring-emerald-100 overflow-hidden group hover:shadow-lg hover:shadow-emerald-500/10 transition-all ${
+                isNew ? "flash-new" : "animate-in"
+              }`}
+              style={isNew ? undefined : { animationDelay: `${i * 25}ms` }}
             >
               {/* Image */}
               <div className="aspect-[3/4] bg-gradient-to-br from-emerald-50 to-teal-50 relative">
@@ -138,7 +159,8 @@ export default function InsidePage() {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

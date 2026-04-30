@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useNewIds } from "@/hooks/useNewIds";
 import { useLiveStream } from "@/hooks/useLiveStream";
+import { useFlipChildren } from "@/hooks/useFlipChildren";
 
 export default function StrangersPage() {
   const queryClient = useQueryClient();
@@ -45,6 +46,7 @@ export default function StrangersPage() {
   );
 
   const newIds = useNewIds(data?.data, (s: any) => s.id, 3000);
+  const gridRef = useFlipChildren<HTMLDivElement>([data?.data]);
 
   const deleteMutation = useMutation({
     mutationFn: api.deleteStranger,
@@ -86,7 +88,7 @@ export default function StrangersPage() {
           <p className="text-sm text-muted-foreground">Notanish yuzlar topilmadi</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
           {(data?.data ?? []).map((s, i) => {
             const isNew = newIds.has(s.id);
             return (

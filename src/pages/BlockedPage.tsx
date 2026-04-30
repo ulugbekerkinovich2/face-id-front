@@ -6,6 +6,8 @@ import {
   ShieldBan, ShieldCheck, Search, X, Loader2, Plus, Upload, FileSpreadsheet, List,
   UserSearch, XCircle,
 } from "lucide-react";
+import { useNewIds } from "@/hooks/useNewIds";
+import { useFlipChildren } from "@/hooks/useFlipChildren";
 
 // ─── Manual Bulk Modal ────────────────────────────────────────────
 function BulkTextModal({ open, onClose, action }: { open: boolean; onClose: () => void; action: "block" | "unblock" }) {
@@ -475,6 +477,10 @@ export default function BlockedPage() {
   const inDevices = (blockedData?.in_devices ?? []) as number[];
   const outDevices = (blockedData?.out_devices ?? []) as number[];
 
+  // Yangi bloklangan user qatorini flash qilish + qatorlar siljishini animatsiya
+  const newRowIds = useNewIds(blocked, (u: any) => u.id ?? u.name, 3000);
+  const tbodyRef = useFlipChildren<HTMLTableSectionElement>([blocked]);
+
   return (
     <div className="p-5 lg:p-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3 animate-in">
@@ -564,9 +570,14 @@ export default function BlockedPage() {
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {blocked.map((u, i) => (
-                <tr key={u.id ?? u.name} className="border-b border-border/15 hover:bg-muted/20 transition-colors">
+            <tbody ref={tbodyRef}>
+              {blocked.map((u, i) => {
+                const rowId = u.id ?? u.name;
+                const isNew = newRowIds.has(rowId);
+                return (
+                <tr key={u.id ?? u.name} className={`border-b border-border/15 hover:bg-muted/20 transition-colors ${
+                  isNew ? "flash-new" : ""
+                }`}>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{(page - 1) * perPage + i + 1}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -639,7 +650,8 @@ export default function BlockedPage() {
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

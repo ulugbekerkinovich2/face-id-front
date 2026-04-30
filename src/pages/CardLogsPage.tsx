@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import {
   CreditCard, Search, Calendar, ChevronLeft, ChevronRight,
   ArrowDownToLine, ArrowUpFromLine, X, Eye, User, Loader2,
 } from "lucide-react";
+import { useNewIds } from "@/hooks/useNewIds";
+import { useLiveStream } from "@/hooks/useLiveStream";
+import { useFlipChildren } from "@/hooks/useFlipChildren";
 
 const DOOR_LABEL: Record<number, string> = {
   2489019: "1-eshik",
@@ -33,11 +36,40 @@ export default function CardLogsPage() {
   const [direction, setDirection] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
+  const queryKey = ["card-logs", page, search, date, direction] as const;
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["card-logs", page, search, date, direction],
+    queryKey,
     queryFn: () => api.getCardLogs({ page, per_page: 24, search, date, direction }),
     placeholderData: (prev: any) => prev,
   });
+
+  // WebSocket — yangi card swiplar 1-sahifaga prepend
+  useLiveStream<{
+    id: number; name: string; face_id: number; direction: "IN" | "OUT" | "UNKNOWN";
+    similarity: number; time: string; image: string;
+  }>(["card_logs"], (ev) => {
+    if (ev.channel !== "card_logs") return;
+    const log = ev.data;
+    const matches = page === 1 && !search && !date &&
+      (!direction || log.direction === direction);
+    if (matches) {
+      queryClient.setQueryData<any>(queryKey, (old: any) => {
+        if (!old) return old;
+        if (old.data?.some((l: any) => l.id === log.id)) return old;
+        return {
+          ...old,
+          total: (old.total ?? 0) + 1,
+          data: [log, ...old.data].slice(0, old.per_page ?? 24),
+        };
+      });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["card-logs"] });
+    }
+  });
+
+  const newIds = useNewIds(data?.data, (l: any) => l.id, 3000);
+  const gridRef = useFlipChildren<HTMLDivElement>([data?.data]);
 
   function reset() {
     setPage(1);
@@ -138,12 +170,16 @@ export default function CardLogsPage() {
           <p className="text-sm text-muted-foreground">ID karta loglari topilmadi</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
-          {(data?.data ?? []).map((entry, i) => (
+        <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
+          {(data?.data ?? []).map((entry, i) => {
+            const isNew = newIds.has(entry.id);
+            return (
             <div
               key={entry.id}
-              className="animate-in bg-white rounded-xl border border-border/40 overflow-hidden group hover:shadow-md transition-all"
-              style={{ animationDelay: `${i * 20}ms` }}
+              className={`bg-white rounded-xl border border-border/40 overflow-hidden group hover:shadow-md transition-all ${
+                isNew ? "flash-new" : "animate-in"
+              }`}
+              style={isNew ? undefined : { animationDelay: `${i * 20}ms` }}
             >
               {/* Image */}
               <div className="aspect-[3/4] bg-muted/30 relative">
@@ -200,7 +236,8 @@ export default function CardLogsPage() {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
       </div>

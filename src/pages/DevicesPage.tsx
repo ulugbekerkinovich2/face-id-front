@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, Device } from "@/lib/api";
 import {
   Router,
@@ -10,9 +10,36 @@ import {
   Activity,
   Signal,
   Loader2,
+  Database,
+  Calendar,
+  TrendingUp,
 } from "lucide-react";
+import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { useLiveStream } from "@/hooks/useLiveStream";
+import { Sparkline } from "@/components/dashboard/Sparkline";
 
-function DeviceCard({ device, index }: { device: Device; index: number }) {
+function Num({ value, className = "" }: { value: number; className?: string }) {
+  const v = useAnimatedNumber(value);
+  return <span className={className}>{v.toLocaleString()}</span>;
+}
+
+function fmtBig(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+interface DeviceAnalytics {
+  device_num: number;
+  total: number;
+  today: number;
+  week: number;
+  spark_24h: number[];
+  daily_7d: Array<{ date: string; count: number }>;
+  peak_hour: number | null;
+}
+
+function DeviceCard({ device, index, analytics }: { device: Device; index: number; analytics?: DeviceAnalytics }) {
   const isIn = device.direction === "IN";
   const lastSeen = device.last_seen
     ? new Date(device.last_seen).toLocaleTimeString("uz-UZ", {
@@ -107,21 +134,73 @@ function DeviceCard({ device, index }: { device: Device; index: number }) {
             <p className="text-xs font-bold tabular-nums">{lastSeen}</p>
           </div>
         </div>
+
+        {/* 24h sparkline */}
+        {analytics && (
+          <div className="mt-4 pt-4 border-t border-border/30">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">24 soat</p>
+              {analytics.peak_hour !== null && (
+                <p className="text-[10px] text-violet-600 font-bold">
+                  Peak: {analytics.peak_hour}:00
+                </p>
+              )}
+            </div>
+            <Sparkline
+              values={analytics.spark_24h}
+              width={260}
+              height={36}
+              color={isIn ? "#10b981" : "#f43f5e"}
+              fillColor={isIn ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.12)"}
+            />
+            <div className="grid grid-cols-3 gap-1 mt-2 text-center">
+              <div>
+                <p className="text-[9px] text-muted-foreground">Bugun</p>
+                <p className="text-[12px] font-extrabold tabular-nums">{analytics.today.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-muted-foreground">Hafta</p>
+                <p className="text-[12px] font-extrabold tabular-nums">{analytics.week.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[9px] text-muted-foreground">Jami</p>
+                <p className="text-[12px] font-extrabold tabular-nums text-violet-600">{fmtBig(analytics.total)}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 export default function DevicesPage() {
+  const queryClient = useQueryClient();
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["devices"],
     queryFn: api.getDevices,
     refetchInterval: 30_000,
   });
 
+  const { data: analytics } = useQuery({
+    queryKey: ["devices-analytics"],
+    queryFn: api.getDevicesAnalytics,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  // WS — yangi log kelganda analytics va devices yangilanadi
+  useLiveStream<any>(["logs"], () => {
+    queryClient.invalidateQueries({ queryKey: ["devices"] });
+    queryClient.invalidateQueries({ queryKey: ["devices-analytics"] });
+  });
+
   const devices = data?.devices ?? [];
   const online = devices.filter((d) => d.is_online).length;
   const offline = devices.length - online;
+  const analyticsByNum = new Map<number, DeviceAnalytics>(
+    (analytics?.devices ?? []).map((d) => [d.device_num, d as DeviceAnalytics]),
+  );
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -134,6 +213,66 @@ export default function DevicesPage() {
         </div>
         {isFetching && !isLoading && <Loader2 className="w-4 h-4 animate-spin text-primary mt-1" />}
       </div>
+
+      {/* Hero counters — premium gradient strip */}
+      {analytics && (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 animate-in" style={{ animationDelay: "30ms" }}>
+          <div className="hero-card bg-gradient-to-br from-violet-500 to-fuchsia-600 rounded-2xl p-4 text-white shadow-lg shadow-violet-500/20">
+            <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+              <Database className="w-3.5 h-3.5" /> Jami yozuv
+            </div>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none mt-1.5">
+              {fmtBig(analytics.total)}
+            </p>
+            <p className="text-[10px] text-white/70 mt-0.5"><Num value={analytics.total} /> ta</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-500/20 hero-card">
+            <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+              <Calendar className="w-3.5 h-3.5" /> Bugun
+            </div>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none mt-1.5">
+              <Num value={analytics.today} />
+            </p>
+            <div className="flex items-center gap-2 mt-1 text-[10px]">
+              <span className="bg-white/20 rounded-full px-1.5 py-0.5"><ArrowDownToLine className="w-2.5 h-2.5 inline" /> {analytics.today_in}</span>
+              <span className="bg-white/20 rounded-full px-1.5 py-0.5"><ArrowUpFromLine className="w-2.5 h-2.5 inline" /> {analytics.today_out}</span>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-500/20 hero-card">
+            <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+              <Activity className="w-3.5 h-3.5" /> 7 kunlik
+            </div>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none mt-1.5">
+              <Num value={analytics.week} />
+            </p>
+            <p className="text-[10px] text-white/70 mt-0.5">~{Math.round(analytics.week / 7).toLocaleString()}/kun</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white shadow-lg shadow-amber-500/20 hero-card">
+            <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+              <TrendingUp className="w-3.5 h-3.5" /> 30 kunlik
+            </div>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none mt-1.5">
+              <Num value={analytics.month} />
+            </p>
+            <p className="text-[10px] text-white/70 mt-0.5">o'rtacha {analytics.avg_daily}/kun</p>
+          </div>
+
+          <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-2xl p-4 text-white shadow-lg shadow-rose-500/20 hero-card">
+            <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-wider">
+              <Signal className="w-3.5 h-3.5" /> Online
+            </div>
+            <p className="text-[26px] font-extrabold tabular-nums leading-none mt-1.5">
+              {online}<span className="text-base text-white/70">/{devices.length}</span>
+            </p>
+            <p className="text-[10px] text-white/70 mt-0.5">
+              {offline > 0 ? `${offline} offline` : "✓ hammasi"}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Summary pills */}
       <div className="flex flex-wrap gap-2 animate-in" style={{ animationDelay: "50ms" }}>
@@ -174,7 +313,12 @@ export default function DevicesPage() {
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
           {devices.map((device, i) => (
-            <DeviceCard key={device.device_id} device={device} index={i} />
+            <DeviceCard
+              key={device.device_id}
+              device={device}
+              index={i}
+              analytics={analyticsByNum.get(device.device_num)}
+            />
           ))}
           {devices.length === 0 && (
             <div className="col-span-full text-center py-16">

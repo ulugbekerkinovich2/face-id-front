@@ -233,6 +233,17 @@ export const api = {
   // Dashboard
   getStats: () => fetchApi<DashboardStats>("/stats/"),
   getWowStats: () => fetchApi<WowStats>("/dashboard/wow/"),
+  getDevicesAnalytics: () => fetchApi<{
+    total: number; today: number; week: number; month: number; avg_daily: number;
+    today_in: number; today_out: number;
+    devices: Array<{
+      device_id: string; device_num: number; ip: string; direction: "IN" | "OUT" | "UNKNOWN";
+      total: number; today: number; week: number;
+      spark_24h: number[]; daily_7d: Array<{ date: string; count: number }>;
+      peak_hour: number | null;
+    }>;
+    top_today: Array<{ device_num: number; today: number; direction: string }>;
+  }>("/devices/analytics/"),
   getDevices: () => fetchApi<{ devices: Device[] }>("/devices/"),
   getDailyChart: (days = 30) => fetchApi<{ data: ChartPoint[] }>("/chart/daily/", { days: String(days) }),
   getHourlyChart: (date?: string) => fetchApi<{ date: string; data: HourlyPoint[] }>("/chart/hourly/", date ? { date } : {}),

@@ -12,6 +12,10 @@ import { useState, useEffect, useRef } from "react";
 import { useNewIds } from "@/hooks/useNewIds";
 import { useLiveStream } from "@/hooks/useLiveStream";
 import { useFlipChildren } from "@/hooks/useFlipChildren";
+import { ProgressRing } from "@/components/dashboard/ProgressRing";
+import { HourlyHeatmap } from "@/components/dashboard/HourlyHeatmap";
+import { TopLateUsers } from "@/components/dashboard/TopLateUsers";
+import { LastEnteredCard } from "@/components/dashboard/LastEnteredCard";
 
 function Num({ value, className = "" }: { value: number; className?: string }) {
   const v = useAnimatedNumber(value);
@@ -172,7 +176,15 @@ export default function DashboardPage() {
   // Yangi log/stranger kelganda stats'ni yangilash
   useLiveStream<any>(["logs", "strangers"], () => {
     queryClient.invalidateQueries({ queryKey: ["stats"] });
+    queryClient.invalidateQueries({ queryKey: ["wow-stats"] });
     queryClient.invalidateQueries({ queryKey: ["inside"] });
+  });
+
+  const { data: wow } = useQuery({
+    queryKey: ["wow-stats"],
+    queryFn: api.getWowStats,
+    staleTime: 20_000,
+    refetchInterval: 60_000,
   });
 
   const { data: insideData } = useQuery({
@@ -315,6 +327,95 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Wow stats — attendance + last entered */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.2fr] gap-4">
+        {/* Attendance progress rings */}
+        <div className="count-up bg-white rounded-2xl border border-border/50 p-5" style={{ animationDelay: "300ms" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[14px] font-bold">Bugungi davomad</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {wow ? `${wow.came_count}/${wow.total_users} keldi` : "—"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-center">
+            <ProgressRing
+              value={wow?.attendance_pct ?? 0}
+              size={150}
+              color="text-emerald-500"
+              label="Davomad"
+              sublabel={wow ? `${wow.late_count} kech` : undefined}
+            />
+          </div>
+          {wow && (
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-border/30">
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground">Vaqtida</p>
+                <p className="text-[16px] font-extrabold text-emerald-600 tabular-nums">{wow.ontime_count}</p>
+              </div>
+              <div className="text-center border-x border-border/30">
+                <p className="text-[10px] text-muted-foreground">Kech</p>
+                <p className="text-[16px] font-extrabold text-rose-500 tabular-nums">{wow.late_count}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-muted-foreground">Kelmagan</p>
+                <p className="text-[16px] font-extrabold text-slate-400 tabular-nums">{wow.absent_count}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Last entered + time stats */}
+        <div className="count-up bg-gradient-to-br from-emerald-50 via-white to-teal-50/40 rounded-2xl border border-emerald-100 p-5" style={{ animationDelay: "380ms" }}>
+          <LastEnteredCard data={wow?.last_entered ?? null} />
+          {wow && (
+            <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-emerald-100">
+              <div>
+                <p className="text-[10px] text-emerald-600 font-semibold uppercase">O'rtacha</p>
+                <p className="text-[18px] font-extrabold tabular-nums">{wow.avg_arrival ?? "—"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-emerald-600 font-semibold uppercase">Eng erta</p>
+                <p className="text-[18px] font-extrabold tabular-nums">
+                  {wow.earliest?.time ?? "—"}
+                </p>
+                {wow.earliest && (
+                  <p className="text-[10px] text-muted-foreground truncate">{wow.earliest.name}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Top late */}
+        <div className="count-up bg-white rounded-2xl border border-border/50 p-5" style={{ animationDelay: "460ms" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[14px] font-bold">Eng kech kelganlar</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Bugun, top 5</p>
+            </div>
+            {wow?.late_pct != null && (
+              <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-1 rounded-full">
+                {wow.late_pct}% kech
+              </span>
+            )}
+          </div>
+          <TopLateUsers items={wow?.top_late ?? []} />
+        </div>
+      </div>
+
+      {/* Hourly heatmap */}
+      <div className="count-up bg-white rounded-2xl border border-border/50 p-6" style={{ animationDelay: "540ms" }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-[15px] font-bold">Soatlik kirish heatmap</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Bugun — har soatda nechta kirgan</p>
+          </div>
+        </div>
+        <HourlyHeatmap hourly={wow?.hourly ?? new Array(24).fill(0)} />
       </div>
 
       {/* Live feed + Chart side by side on large screens */}

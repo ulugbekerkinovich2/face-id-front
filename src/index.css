@@ -234,6 +234,70 @@
     z-index: -1;
   }
 
+  /* Glassmorphism card — orqa fon bilan biroz blur, yarim shaffof */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+  }
+
+  /* Animated gradient border — premium hero card uchun */
+  @keyframes spinBorder {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  .gradient-border {
+    position: relative;
+    background-clip: padding-box;
+  }
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(135deg, #a78bfa, #f472b6, #60a5fa, #34d399, #a78bfa);
+    background-size: 300% 300%;
+    animation: spinBorder 8s ease infinite;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Live pulse halo — "LIVE" badge'i uchun */
+  @keyframes liveHalo {
+    0%, 100% { transform: scale(1); opacity: 0.55; }
+    50%      { transform: scale(1.55); opacity: 0; }
+  }
+  .live-halo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: liveHalo 1.6s ease-out infinite;
+    pointer-events: none;
+  }
+
+  /* Hero stat card — premium gradient bg */
+  .hero-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card::after {
+    content: "";
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(closest-side, rgba(255,255,255,0.35), transparent 70%);
+    pointer-events: none;
+  }
+
   /* Kelayotgan badge — "yangi" markerini bildiradi */
   @keyframes pulseBadge {
     0%, 100% { transform: scale(1); }

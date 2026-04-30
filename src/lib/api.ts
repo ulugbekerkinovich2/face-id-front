@@ -63,6 +63,22 @@ export interface DashboardStats {
   yesterday_exits: number;
 }
 
+export interface WowStats {
+  ontime_count: number;
+  late_count: number;
+  absent_count: number;
+  came_count: number;
+  total_users: number;
+  attendance_pct: number;
+  late_pct: number;
+  avg_arrival: string | null;
+  earliest: { name: string; time: string; image: string } | null;
+  latest:   { name: string; time: string; image: string; late_minutes?: number } | null;
+  last_entered: { name: string; time: string; image: string; face_id: number } | null;
+  hourly: number[];  // 24 ta
+  top_late: Array<{ name: string; time: string; image: string; late_minutes: number }>;
+}
+
 export interface Device {
   device_id: string;
   device_num: number;
@@ -211,6 +227,7 @@ export interface PaginatedResponse<T> {
 export const api = {
   // Dashboard
   getStats: () => fetchApi<DashboardStats>("/stats/"),
+  getWowStats: () => fetchApi<WowStats>("/dashboard/wow/"),
   getDevices: () => fetchApi<{ devices: Device[] }>("/devices/"),
   getDailyChart: (days = 30) => fetchApi<{ data: ChartPoint[] }>("/chart/daily/", { days: String(days) }),
   getHourlyChart: (date?: string) => fetchApi<{ date: string; data: HourlyPoint[] }>("/chart/hourly/", date ? { date } : {}),

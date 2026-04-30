@@ -16,6 +16,10 @@ import { ProgressRing } from "@/components/dashboard/ProgressRing";
 import { HourlyHeatmap } from "@/components/dashboard/HourlyHeatmap";
 import { TopLateUsers } from "@/components/dashboard/TopLateUsers";
 import { LastEnteredCard } from "@/components/dashboard/LastEnteredCard";
+import { LateTrendChart } from "@/components/dashboard/LateTrendChart";
+import { MostActiveUsers } from "@/components/dashboard/MostActiveUsers";
+import { LivePulseBadge } from "@/components/dashboard/LivePulseBadge";
+import { ImageLightbox } from "@/components/dashboard/ImageLightbox";
 
 function Num({ value, className = "" }: { value: number; className?: string }) {
   const v = useAnimatedNumber(value);
@@ -164,6 +168,8 @@ function LiveBadge({ updatedAt }: { updatedAt: Date | null }) {
 
 export default function DashboardPage() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [eventCount, setEventCount] = useState(0);
   const queryClient = useQueryClient();
 
   const { data: stats, isLoading, dataUpdatedAt } = useQuery({
@@ -173,8 +179,9 @@ export default function DashboardPage() {
     staleTime: 15_000,
   });
 
-  // Yangi log/stranger kelganda stats'ni yangilash
+  // Yangi log/stranger kelganda stats'ni yangilash + counter
   useLiveStream<any>(["logs", "strangers"], () => {
+    setEventCount((c) => c + 1);
     queryClient.invalidateQueries({ queryKey: ["stats"] });
     queryClient.invalidateQueries({ queryKey: ["wow-stats"] });
     queryClient.invalidateQueries({ queryKey: ["inside"] });
@@ -262,14 +269,16 @@ export default function DashboardPage() {
   return (
     <div className="p-5 lg:p-6 space-y-6">
       {/* Header */}
-      <div className="animate-in flex items-end justify-between">
+      <div className="animate-in flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Dashboard</h1>
           <p className="text-[13px] text-muted-foreground mt-0.5">
             {new Date().toLocaleDateString("uz-UZ", { weekday: "long", day: "numeric", month: "long" })}
           </p>
         </div>
-        <LiveBadge updatedAt={updatedAt} />
+        <div className="flex items-center gap-3">
+          <LivePulseBadge count={eventCount} countLabel="ulanish" />
+        </div>
       </div>
 
       {/* Main stat cards */}
@@ -277,7 +286,9 @@ export default function DashboardPage() {
         {statCards.map((s, i) => (
           <div
             key={s.title}
-            className="count-up bg-white rounded-2xl border border-border/50 p-5 hover:shadow-xl hover:shadow-black/[0.04] hover:-translate-y-1 transition-all duration-300"
+            className={`count-up rounded-2xl p-5 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 ${
+              i === 0 ? "gradient-border bg-white" : "bg-white border border-border/50"
+            }`}
             style={{ animationDelay: `${i * 80}ms` }}
           >
             <div className="flex items-start justify-between">
@@ -370,7 +381,7 @@ export default function DashboardPage() {
 
         {/* Last entered + time stats */}
         <div className="count-up bg-gradient-to-br from-emerald-50 via-white to-teal-50/40 rounded-2xl border border-emerald-100 p-5" style={{ animationDelay: "380ms" }}>
-          <LastEnteredCard data={wow?.last_entered ?? null} />
+          <LastEnteredCard data={wow?.last_entered ?? null} onImageClick={setLightbox} />
           {wow && (
             <div className="grid grid-cols-2 gap-3 mt-5 pt-4 border-t border-emerald-100">
               <div>
@@ -403,19 +414,44 @@ export default function DashboardPage() {
               </span>
             )}
           </div>
-          <TopLateUsers items={wow?.top_late ?? []} />
+          <TopLateUsers items={wow?.top_late ?? []} onImageClick={setLightbox} />
         </div>
       </div>
 
-      {/* Hourly heatmap */}
-      <div className="count-up bg-white rounded-2xl border border-border/50 p-6" style={{ animationDelay: "540ms" }}>
-        <div className="flex items-center justify-between mb-4">
+      {/* Hourly heatmap + Late trend side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="count-up bg-white rounded-2xl border border-border/50 p-6" style={{ animationDelay: "540ms" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[15px] font-bold">Soatlik heatmap</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Bugun — har soatda nechta kirgan</p>
+            </div>
+          </div>
+          <HourlyHeatmap hourly={wow?.hourly ?? new Array(24).fill(0)} />
+        </div>
+
+        <div className="count-up bg-white rounded-2xl border border-border/50 p-6" style={{ animationDelay: "620ms" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-[15px] font-bold">Kechikish trendi</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Oxirgi 14 kun, foiz</p>
+            </div>
+          </div>
+          <LateTrendChart data={wow?.late_trend ?? []} />
+        </div>
+      </div>
+
+      {/* Most active users — full row */}
+      <div className="count-up bg-gradient-to-br from-amber-50/40 via-white to-orange-50/40 rounded-2xl border border-amber-100 p-6" style={{ animationDelay: "700ms" }}>
+        <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-[15px] font-bold">Soatlik kirish heatmap</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Bugun — har soatda nechta kirgan</p>
+            <h3 className="text-[15px] font-bold flex items-center gap-2">
+              <span>🏆</span> Eng faol foydalanuvchilar
+            </h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Oxirgi 30 kun bo'yicha kirish soni</p>
           </div>
         </div>
-        <HourlyHeatmap hourly={wow?.hourly ?? new Array(24).fill(0)} />
+        <MostActiveUsers items={wow?.most_active ?? []} onImageClick={setLightbox} />
       </div>
 
       {/* Live feed + Chart side by side on large screens */}
@@ -465,6 +501,9 @@ export default function DashboardPage() {
       <LiveFeedTicker />
 
       </div>{/* end grid */}
+
+      {/* Image lightbox */}
+      <ImageLightbox src={lightbox} onClose={() => setLightbox(null)} />
     </div>
   );
 }

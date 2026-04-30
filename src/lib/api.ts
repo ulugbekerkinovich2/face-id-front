@@ -77,6 +77,8 @@ export interface WowStats {
   last_entered: { name: string; time: string; image: string; face_id: number } | null;
   hourly: number[];  // 24 ta
   top_late: Array<{ name: string; time: string; image: string; late_minutes: number }>;
+  late_trend: Array<{ date: string; total: number; late: number; pct: number }>;
+  most_active: Array<{ name: string; count: number; image: string }>;
 }
 
 export interface Device {

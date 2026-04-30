@@ -19,9 +19,10 @@ function initials(s: string) {
 
 interface Props {
   items: LateUser[];
+  onImageClick?: (src: string) => void;
 }
 
-export function TopLateUsers({ items }: Props) {
+export function TopLateUsers({ items, onImageClick }: Props) {
   if (!items.length) {
     return (
       <div className="text-center py-8">
@@ -40,7 +41,11 @@ export function TopLateUsers({ items }: Props) {
         >
           <div className="relative flex-shrink-0">
             {u.image ? (
-              <img src={u.image} alt="" loading="lazy" className="w-10 h-10 rounded-full object-cover ring-2 ring-rose-100" />
+              <img src={u.image} alt="" loading="lazy"
+                   onClick={() => onImageClick?.(u.image)}
+                   className={`w-10 h-10 rounded-full object-cover ring-2 ring-rose-100 ${
+                     onImageClick ? "cursor-zoom-in hover:ring-rose-300 transition-all" : ""
+                   }`} />
             ) : (
               <div className="w-10 h-10 rounded-full bg-rose-400 flex items-center justify-center text-white font-bold text-xs">
                 {initials(u.name)}

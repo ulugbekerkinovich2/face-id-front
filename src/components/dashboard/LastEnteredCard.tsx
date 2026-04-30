@@ -2,6 +2,7 @@ import { ArrowDownToLine, User } from "lucide-react";
 
 interface Props {
   data: { name: string; time: string; image: string; face_id: number } | null;
+  onImageClick?: (src: string) => void;
 }
 
 const DOOR_LABEL: Record<number, string> = {
@@ -14,7 +15,7 @@ function initials(s: string) {
   return s.split(" ").slice(0, 2).map(w => w[0] ?? "").join("").toUpperCase();
 }
 
-export function LastEnteredCard({ data }: Props) {
+export function LastEnteredCard({ data, onImageClick }: Props) {
   if (!data) {
     return (
       <div className="flex items-center justify-center h-full p-8">
@@ -29,7 +30,10 @@ export function LastEnteredCard({ data }: Props) {
           <img
             src={data.image}
             alt=""
-            className="w-20 h-20 rounded-2xl object-cover shadow-lg ring-4 ring-emerald-100"
+            onClick={() => onImageClick?.(data.image)}
+            className={`w-20 h-20 rounded-2xl object-cover shadow-lg ring-4 ring-emerald-100 ${
+              onImageClick ? "cursor-zoom-in hover:ring-emerald-300 transition-all" : ""
+            }`}
           />
         ) : (
           <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-xl shadow-lg">

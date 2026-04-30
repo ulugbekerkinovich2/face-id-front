@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import { useGlobalNotifications } from "@/hooks/useGlobalNotifications";
 import {
   LayoutDashboard, Router, ScrollText, BarChart3, Shield,
   Menu, X, Users, Ghost, Settings, ShieldBan, LogOut,
@@ -33,6 +34,9 @@ export default function Layout() {
 
   const NAV = ALL_NAV.filter((n) => !user || n.roles.includes(user.role as any));
   const allowedPaths = NAV.map((n) => n.to);
+
+  // Global real-time notifications — har sahifada ishlaydi
+  useGlobalNotifications();
   const bottomNav = NAV.filter((n) => BOTTOM_NAV.includes(n.to as any));
 
   useEffect(() => {

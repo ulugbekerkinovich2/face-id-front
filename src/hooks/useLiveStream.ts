@@ -2,12 +2,22 @@ import { useEffect, useRef } from "react";
 
 const API_BASE = import.meta.env.VITE_API_URL as string;
 
-function wsUrl(channels: string[], token: string): string {
-  // API_BASE 'https://example.com/api' ko'rinishida — ws scheme'ni ajratamiz
+function wsUrlBase(): string {
+  // VITE_API_URL = 'https://face-id-admin.misterdev.uz/api' → wss://.../ws/live/
   const u = new URL(API_BASE);
   const wsScheme = u.protocol === "https:" ? "wss:" : "ws:";
-  // /api'ni olib tashlaymiz, /ws/live/ qo'yamiz
-  return `${wsScheme}//${u.host}/ws/live/?token=${encodeURIComponent(token)}&channels=${channels.join(",")}`;
+  return `${wsScheme}//${u.host}/ws/live/`;
+}
+
+async function fetchTicket(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/ws-ticket/`, { credentials: "include" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.ticket ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export interface LiveEvent<T = any> {
@@ -17,13 +27,12 @@ export interface LiveEvent<T = any> {
 }
 
 /**
- * WebSocket orqali real-time stream. Avto qayta-ulanish bilan
+ * WebSocket orqali real-time stream. Auto qayta-ulanish bilan
  * (exponential backoff, max 10s).
  *
- * @example
- *   useLiveStream(["logs"], (ev) => {
- *     if (ev.channel === "logs") prependLog(ev.data);
- *   });
+ * Auth: backend HttpOnly cookie sxemasi ishlatadi → JS token ololmaydi.
+ * Shu sabab har ulanishdan oldin `/api/auth/ws-ticket/` chaqirib ticket
+ * olamiz va WS query string'iga qo'yamiz.
  */
 export function useLiveStream<T = any>(
   channels: string[],
@@ -38,12 +47,6 @@ export function useLiveStream<T = any>(
       console.warn("[ws] no channels, skipping connection");
       return;
     }
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-      console.warn("[ws] no authToken in localStorage, skipping");
-      return;
-    }
-    console.info("[ws] connecting", { url: wsUrl(channels, token).replace(/token=[^&]+/, "token=***") });
 
     let ws: WebSocket | null = null;
     let reconnectTid: number | null = null;
@@ -51,10 +54,20 @@ export function useLiveStream<T = any>(
     let attempt = 0;
     let stopped = false;
 
-    const connect = () => {
+    const connect = async () => {
       if (stopped) return;
+      const ticket = await fetchTicket();
+      if (stopped) return;
+      if (!ticket) {
+        console.warn("[ws] no ws-ticket (likely not signed in), retrying later");
+        scheduleReconnect();
+        return;
+      }
+      const url = `${wsUrlBase()}?token=${encodeURIComponent(ticket)}&channels=${channelsKey}`;
+      console.info("[ws] connecting", url.replace(/token=[^&]+/, "token=***"));
+
       try {
-        ws = new WebSocket(wsUrl(channels, token));
+        ws = new WebSocket(url);
       } catch {
         scheduleReconnect();
         return;

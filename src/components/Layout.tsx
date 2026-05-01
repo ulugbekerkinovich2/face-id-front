@@ -4,22 +4,26 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { useGlobalNotifications } from "@/hooks/useGlobalNotifications";
 import {
-  LayoutDashboard, Router, ScrollText, BarChart3, Shield,
+  LayoutDashboard, Router, ScrollText, BarChart3, Shield, ShieldCheck, History,
   Menu, X, Users, Ghost, Settings, ShieldBan, LogOut,
   CreditCard, UserCheck, Sun, Moon,
 } from "lucide-react";
 
+// Har nav element'i uchun talab qilingan permission ham qo'shildi.
+// super_admin har doim hammasini ko'radi.
 const ALL_NAV = [
-  { to: "/",          icon: LayoutDashboard, label: "Dashboard",         group: "Asosiy",      roles: ["admin"] },
-  { to: "/inside",    icon: UserCheck,       label: "Ichkarida",          group: "Asosiy",      roles: ["admin"] },
-  { to: "/devices",   icon: Router,          label: "Qurilmalar",         group: "Asosiy",      roles: ["admin"] },
-  { to: "/logs",      icon: ScrollText,      label: "Loglar",             group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/users",     icon: Users,           label: "Foydalanuvchilar",   group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/blocked",   icon: ShieldBan,       label: "Bloklangan",         group: "Ma'lumotlar", roles: ["admin", "user"] },
-  { to: "/strangers", icon: Ghost,           label: "Notanishlar",        group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/card-logs", icon: CreditCard,      label: "ID Karta",           group: "Ma'lumotlar", roles: ["admin"] },
-  { to: "/analytics", icon: BarChart3,       label: "Statistika",         group: "Tahlil",      roles: ["admin"] },
-  { to: "/settings",  icon: Settings,        label: "Sozlamalar",         group: "Tahlil",      roles: ["admin"] },
+  { to: "/",            icon: LayoutDashboard, label: "Dashboard",       group: "Asosiy",      roles: ["admin", "manager", "operator"], perm: "dashboard.view" },
+  { to: "/inside",      icon: UserCheck,       label: "Ichkarida",        group: "Asosiy",      roles: ["admin", "manager", "operator"], perm: "dashboard.view" },
+  { to: "/devices",     icon: Router,          label: "Qurilmalar",       group: "Asosiy",      roles: ["admin", "manager", "operator"], perm: "devices.view" },
+  { to: "/logs",        icon: ScrollText,      label: "Loglar",           group: "Ma'lumotlar", roles: ["admin", "manager", "operator"], perm: "logs.view" },
+  { to: "/users",       icon: Users,           label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "users.read" },
+  { to: "/blocked",     icon: ShieldBan,       label: "Bloklangan",       group: "Ma'lumotlar", roles: ["admin", "manager", "user"],      perm: "users.read" },
+  { to: "/strangers",   icon: Ghost,           label: "Notanishlar",      group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "strangers.view" },
+  { to: "/card-logs",   icon: CreditCard,      label: "ID Karta",         group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "card_logs.view" },
+  { to: "/analytics",   icon: BarChart3,       label: "Statistika",       group: "Tahlil",      roles: ["admin", "manager"],              perm: "analytics.view" },
+  { to: "/admin-users", icon: ShieldCheck,     label: "Admin userlar",    group: "Boshqaruv",   roles: ["admin"],                         perm: "admin_users.read" },
+  { to: "/audit",       icon: History,         label: "Audit log",        group: "Boshqaruv",   roles: ["admin"],                         perm: "audit.view" },
+  { to: "/settings",    icon: Settings,        label: "Sozlamalar",       group: "Boshqaruv",   roles: ["admin"],                         perm: "settings.view" },
 ] as const;
 
 // Mobile bottom nav — 5 ta asosiy sahifa
@@ -32,7 +36,18 @@ export default function Layout() {
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
 
-  const NAV = ALL_NAV.filter((n) => !user || n.roles.includes(user.role as any));
+  // Permission filter — super_admin hammasini ko'radi, boshqalar permission bo'yicha
+  const userPerms = new Set(user?.permissions ?? []);
+  const isSuper = user?.role === "super_admin";
+  const NAV = ALL_NAV.filter((n) => {
+    if (!user) return false;
+    if (isSuper) return true;
+    if (n.perm && !userPerms.has(n.perm)) {
+      // Permission yo'q bo'lsa-yu, lekin role mos kelsa (legacy env users) — ko'rsat
+      return n.roles.includes(user.role as any);
+    }
+    return n.perm ? userPerms.has(n.perm) : n.roles.includes(user.role as any);
+  });
   const allowedPaths = NAV.map((n) => n.to);
 
   // Global real-time notifications — har sahifada ishlaydi

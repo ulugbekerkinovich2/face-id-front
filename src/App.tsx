@@ -18,6 +18,8 @@ const CardLogsPage = lazy(() => import("@/pages/CardLogsPage"));
 const InsidePage = lazy(() => import("@/pages/InsidePage"));
 const AnalyticsPage = lazy(() => import("@/pages/AnalyticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
+const AuditLogPage = lazy(() => import("@/pages/AuditLogPage"));
 const Login = lazy(() => import("@/pages/Login"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -59,6 +61,8 @@ const App = () => (
               <Route path="/card-logs" element={<CardLogsPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/admin-users" element={<AdminUsersPage />} />
+              <Route path="/audit" element={<AuditLogPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

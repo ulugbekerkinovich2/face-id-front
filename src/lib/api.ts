@@ -52,6 +52,43 @@ async function deleteApi<T>(path: string): Promise<T> {
 
 // ─── Types ─────────────────────────────────────────────────────────
 
+export interface AdminUserItem {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  role: string;
+  role_label: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  extra_permissions: string[];
+  last_login: string | null;
+  created_at: string;
+}
+
+export interface RbacRole {
+  name: string;
+  label: string;
+  is_builtin: boolean;
+  permissions: string[];
+  user_count: number;
+}
+
+export interface AuditLogItem {
+  id: number;
+  actor_username: string;
+  actor_role: string;
+  action: string;
+  target_type: string;
+  target_id: string;
+  method: string;
+  path: string;
+  ip: string;
+  status_code: number | null;
+  details: any;
+  created_at: string;
+}
+
 export interface DashboardStats {
   today_entries: number;
   today_exits: number;
@@ -330,6 +367,42 @@ export const api = {
   getMigrationList: () => fetchApi<{ jobs: (MigrationJob & { job_id: string })[] }>("/storage/migrate/list/"),
   clearMigrationHistory: () =>
     postApi<{ cleared: number }>("/storage/migrate/clear/", {}),
+
+  // RBAC
+  rbacUsers: (p: { search?: string; role?: string; include_deleted?: boolean } = {}) =>
+    fetchApi<{ users: AdminUserItem[]; total: number }>("/rbac/users/",
+      Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
+  rbacCreateUser: (data: {
+    username: string; password: string; role: string;
+    full_name?: string; email?: string; is_active?: boolean;
+    extra_permissions?: string[];
+  }) => postApi<AdminUserItem>("/rbac/users/create/", data),
+  rbacUpdateUser: (id: number, data: any) =>
+    fetch(`${(import.meta.env.VITE_API_URL as string)}/rbac/users/${id}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }).then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(j))),
+  rbacDeleteUser: (id: number) =>
+    fetch(`${(import.meta.env.VITE_API_URL as string)}/rbac/users/${id}/`, {
+      method: "DELETE", credentials: "include",
+    }).then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(j))),
+  rbacRoles: () => fetchApi<{ roles: RbacRole[] }>("/rbac/roles/"),
+  rbacUpdateRole: (name: string, data: { permissions?: string[]; label?: string }) =>
+    fetch(`${(import.meta.env.VITE_API_URL as string)}/rbac/roles/${name}/`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }).then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(j))),
+  rbacPermissions: () => fetchApi<{
+    permissions: { code: string; label: string }[];
+    by_module: Record<string, { code: string; label: string }[]>;
+  }>("/rbac/permissions/"),
+  rbacAudit: (p: { page?: number; per_page?: number; actor?: string; action?: string } = {}) =>
+    fetchApi<PaginatedResponse<AuditLogItem>>("/rbac/audit/",
+      Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
 
   bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
     const fd = new FormData();

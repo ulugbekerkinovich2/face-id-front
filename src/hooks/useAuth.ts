@@ -6,6 +6,8 @@ const USER_KEY = 'authUser';
 export interface AuthUser {
   username: string;
   role: string;
+  full_name?: string;
+  permissions?: string[];
 }
 
 export function clearAuth() {
@@ -31,7 +33,11 @@ export function useAuth() {
         const res = await fetch(`${API_BASE}/auth/check/`, { credentials: "include" });
         if (!res.ok) throw new Error('invalid');
         const data = await res.json();
-        const u: AuthUser = { username: data.username, role: data.role };
+        const u: AuthUser = {
+          username: data.username, role: data.role,
+          full_name: data.full_name || "",
+          permissions: data.permissions || [],
+        };
         setUser(u);
         localStorage.setItem(USER_KEY, JSON.stringify(u));
       } catch {
@@ -62,7 +68,11 @@ export function useAuth() {
       if (!res.ok) {
         return { error: { message: data.error || `Xatolik (${res.status})` } };
       }
-      const u: AuthUser = { username: data.username, role: data.role };
+      const u: AuthUser = {
+        username: data.username, role: data.role,
+        full_name: data.full_name || "",
+        permissions: data.permissions || [],
+      };
       localStorage.setItem(USER_KEY, JSON.stringify(u));
       setUser(u);
       return { error: null };

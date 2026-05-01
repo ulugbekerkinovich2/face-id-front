@@ -12,20 +12,20 @@ import {
 // Har nav element'i uchun talab qilingan permission ham qo'shildi.
 // super_admin har doim hammasini ko'radi.
 const ALL_NAV = [
-  { to: "/",            icon: LayoutDashboard, label: "Dashboard",       group: "Asosiy",      roles: ["admin", "manager", "operator"], perm: "dashboard.view" },
-  { to: "/inside",      icon: UserCheck,       label: "Ichkarida",        group: "Asosiy",      roles: ["admin", "manager", "operator"], perm: "dashboard.view" },
-  { to: "/devices",     icon: Router,          label: "Qurilmalar",       group: "Asosiy",      roles: ["admin", "manager", "operator"], perm: "devices.view" },
-  { to: "/logs",        icon: ScrollText,      label: "Loglar",           group: "Ma'lumotlar", roles: ["admin", "manager", "operator"], perm: "logs.view" },
-  { to: "/users",       icon: Users,           label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "users.read" },
-  { to: "/blocked",     icon: ShieldBan,       label: "Bloklangan",       group: "Ma'lumotlar", roles: ["admin", "manager", "user"],      perm: "users.read" },
-  { to: "/strangers",   icon: Ghost,           label: "Notanishlar",      group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "strangers.view" },
-  { to: "/card-logs",   icon: CreditCard,      label: "ID Karta",         group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "card_logs.view" },
-  { to: "/missing-images", icon: ImageOff,     label: "Rasmsiz log'lar",  group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "logs.missing_images" },
-  { to: "/analytics",   icon: BarChart3,       label: "Statistika",       group: "Tahlil",      roles: ["admin", "manager"],              perm: "analytics.view" },
-  { to: "/image-health",   icon: ScanLine,     label: "Rasm sog'lig'i",   group: "Tahlil",      roles: ["admin"],                         perm: "logs.image_health" },
-  { to: "/settings",    icon: Settings,        label: "Sozlamalar",       group: "Tahlil",      roles: ["admin"],                         perm: "settings.view" },
-  { to: "/admin-users", icon: ShieldCheck,     label: "Admin userlar",    group: "Boshqaruv",   roles: ["admin"],                         perm: "admin_users.read" },
-  { to: "/audit",       icon: History,         label: "Audit log",        group: "Boshqaruv",   roles: ["admin"],                         perm: "audit.view" },
+  { to: "/",            icon: LayoutDashboard, label: "Dashboard",       group: "Asosiy",      roles: ["admin"], perm: "dashboard.view" },
+  { to: "/inside",      icon: UserCheck,       label: "Ichkarida",        group: "Asosiy",      roles: ["admin"], perm: "dashboard.view" },
+  { to: "/devices",     icon: Router,          label: "Qurilmalar",       group: "Asosiy",      roles: ["admin"], perm: "devices.view" },
+  { to: "/logs",        icon: ScrollText,      label: "Loglar",           group: "Ma'lumotlar", roles: ["admin"], perm: "logs.view" },
+  { to: "/users",       icon: Users,           label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin"], perm: "users.read" },
+  { to: "/blocked",     icon: ShieldBan,       label: "Bloklangan",       group: "Ma'lumotlar", roles: ["admin"], perm: "users.read" },
+  { to: "/strangers",   icon: Ghost,           label: "Notanishlar",      group: "Ma'lumotlar", roles: ["admin"], perm: "strangers.view" },
+  { to: "/card-logs",   icon: CreditCard,      label: "ID Karta",         group: "Ma'lumotlar", roles: ["admin"], perm: "card_logs.view" },
+  { to: "/missing-images", icon: ImageOff,     label: "Rasmsiz log'lar",  group: "Ma'lumotlar", roles: ["admin"], perm: "logs.missing_images" },
+  { to: "/analytics",   icon: BarChart3,       label: "Statistika",       group: "Tahlil",      roles: ["admin"], perm: "analytics.view" },
+  { to: "/image-health",   icon: ScanLine,     label: "Rasm sog'lig'i",   group: "Tahlil",      roles: ["admin"], perm: "logs.image_health" },
+  { to: "/settings",    icon: Settings,        label: "Sozlamalar",       group: "Tahlil",      roles: ["admin"], perm: "settings.view" },
+  { to: "/admin-users", icon: ShieldCheck,     label: "Admin userlar",    group: "Boshqaruv",   roles: ["admin"], perm: "admin_users.read" },
+  { to: "/audit",       icon: History,         label: "Audit log",        group: "Boshqaruv",   roles: ["admin"], perm: "audit.view" },
 ] as const;
 
 // Mobile bottom nav — 5 ta asosiy sahifa

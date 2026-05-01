@@ -10,8 +10,6 @@ import {
 const ROLE_BADGE: Record<string, string> = {
   super_admin: "bg-violet-500 text-white",
   admin: "bg-blue-500 text-white",
-  manager: "bg-emerald-500 text-white",
-  operator: "bg-slate-500 text-white",
 };
 
 interface PermGroup { code: string; label: string }
@@ -32,7 +30,7 @@ function UserModal({
   const [email, setEmail] = useState(editing?.email ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState(editing?.role ?? "operator");
+  const [role, setRole] = useState(editing?.role ?? "admin");
   const [isActive, setIsActive] = useState(editing?.is_active ?? true);
   const [extraPerms, setExtraPerms] = useState<Set<string>>(new Set(editing?.extra_permissions ?? []));
 

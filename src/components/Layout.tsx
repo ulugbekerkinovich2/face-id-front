@@ -38,17 +38,14 @@ export default function Layout() {
   const { user, signOut } = useAuth();
   const { theme, toggle } = useTheme();
 
-  // Permission filter — super_admin hammasini ko'radi, boshqalar permission bo'yicha
+  // Permission filter — super_admin hammasini ko'radi, boshqalar faqat permission bo'yicha
   const userPerms = new Set(user?.permissions ?? []);
   const isSuper = user?.role === "super_admin";
   const NAV = ALL_NAV.filter((n) => {
     if (!user) return false;
     if (isSuper) return true;
-    if (n.perm && !userPerms.has(n.perm)) {
-      // Permission yo'q bo'lsa-yu, lekin role mos kelsa (legacy env users) — ko'rsat
-      return n.roles.includes(user.role as any);
-    }
-    return n.perm ? userPerms.has(n.perm) : n.roles.includes(user.role as any);
+    if (!n.perm) return false;
+    return userPerms.has(n.perm);
   });
   const allowedPaths = NAV.map((n) => n.to);
 

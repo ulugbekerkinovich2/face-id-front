@@ -74,6 +74,22 @@ export interface RbacRole {
   user_count: number;
 }
 
+export interface VerifyJob {
+  job_id?: string;
+  status: "queued" | "running" | "done" | "partial" | "error";
+  phase: "queued" | "scan" | "clean" | "refetch" | "done";
+  since?: string | null; until?: string | null;
+  limit?: number; do_refetch?: boolean;
+  total: number;
+  scanned: number; found: number; missing: number;
+  cached: number; cleaned: number;
+  fetched: number; failed_fetch: number;
+  errors?: { id: number; error: string }[];
+  error?: string;
+  updated_at?: string;
+  started?: string;
+}
+
 export interface AuditLogItem {
   id: number;
   actor_username: string;
@@ -422,6 +438,16 @@ export const api = {
       errors?: { id: number; error: string }[];
       updated_at?: string;
     }>(`/logs/refetch-status/${jobId}/`),
+
+  // Image health (4-phase verify + refetch)
+  verifyImagesStart: (data: {
+    since?: string | null; until?: string | null;
+    limit?: number; do_refetch?: boolean; workers?: number;
+  }) => postApi<{ job_id: string; status: string }>("/logs/verify-images/", data),
+  verifyImagesStatus: (jobId: string) =>
+    fetchApi<VerifyJob>(`/logs/verify-images/${jobId}/`),
+  verifyImagesHistory: () =>
+    fetchApi<{ jobs: VerifyJob[] }>("/logs/verify-images/history/"),
 
   bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
     const fd = new FormData();

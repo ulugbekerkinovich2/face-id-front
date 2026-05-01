@@ -5,7 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useGlobalNotifications } from "@/hooks/useGlobalNotifications";
 import {
   LayoutDashboard, Router, ScrollText, BarChart3, Shield, ShieldCheck, History,
-  Menu, X, Users, Ghost, Settings, ShieldBan, LogOut, ImageOff,
+  Menu, X, Users, Ghost, Settings, ShieldBan, LogOut, ImageOff, ScanLine,
   CreditCard, UserCheck, Sun, Moon,
 } from "lucide-react";
 
@@ -21,6 +21,7 @@ const ALL_NAV = [
   { to: "/strangers",   icon: Ghost,           label: "Notanishlar",      group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "strangers.view" },
   { to: "/card-logs",   icon: CreditCard,      label: "ID Karta",         group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "card_logs.view" },
   { to: "/missing-images", icon: ImageOff,     label: "Rasmsiz log'lar",  group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "logs.view" },
+  { to: "/image-health",   icon: ScanLine,     label: "Rasm sog'lig'i",   group: "Boshqaruv",   roles: ["admin"],                         perm: "logs.view" },
   { to: "/analytics",   icon: BarChart3,       label: "Statistika",       group: "Tahlil",      roles: ["admin", "manager"],              perm: "analytics.view" },
   { to: "/admin-users", icon: ShieldCheck,     label: "Admin userlar",    group: "Boshqaruv",   roles: ["admin"],                         perm: "admin_users.read" },
   { to: "/audit",       icon: History,         label: "Audit log",        group: "Boshqaruv",   roles: ["admin"],                         perm: "audit.view" },

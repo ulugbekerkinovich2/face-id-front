@@ -21,6 +21,7 @@ const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
 const AuditLogPage = lazy(() => import("@/pages/AuditLogPage"));
 const MissingImagesPage = lazy(() => import("@/pages/MissingImagesPage"));
+const ImageHealthPage = lazy(() => import("@/pages/ImageHealthPage"));
 const Login = lazy(() => import("@/pages/Login"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/admin-users" element={<AdminUsersPage />} />
               <Route path="/audit" element={<AuditLogPage />} />
               <Route path="/missing-images" element={<MissingImagesPage />} />
+              <Route path="/image-health" element={<ImageHealthPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

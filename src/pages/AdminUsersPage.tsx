@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { api, AdminUserItem, RbacRole } from "@/lib/api";
 import { usePermission } from "@/hooks/usePermission";
 import {
-  ShieldCheck, Plus, Pencil, Trash2, Search, X, Loader2, User,
+  ShieldCheck, Plus, Pencil, Trash2, Search, X, Loader2, User, Eye, EyeOff,
 } from "lucide-react";
 
 const ROLE_BADGE: Record<string, string> = {
@@ -31,6 +31,7 @@ function UserModal({
   const [fullName, setFullName] = useState(editing?.full_name ?? "");
   const [email, setEmail] = useState(editing?.email ?? "");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState(editing?.role ?? "operator");
   const [isActive, setIsActive] = useState(editing?.is_active ?? true);
   const [extraPerms, setExtraPerms] = useState<Set<string>>(new Set(editing?.extra_permissions ?? []));
@@ -95,8 +96,17 @@ function UserModal({
               <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">
                 Parol {isEdit ? "(bo'sh - o'zgarmaydi)" : "*"}
               </label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                     className="w-full h-10 px-3 text-sm rounded-lg border border-border/60" />
+              <div className="relative">
+                <input type={showPassword ? "text" : "password"} value={password}
+                       onChange={(e) => setPassword(e.target.value)}
+                       placeholder={isEdit ? "•••••••• (o'zgartirish uchun yozing)" : "Yangi parol"}
+                       className="w-full h-10 pl-3 pr-10 text-sm rounded-lg border border-border/60" />
+                <button type="button" onClick={() => setShowPassword(s => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+                        aria-label={showPassword ? "Yashirish" : "Ko'rsatish"}>
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="text-[11px] font-semibold text-muted-foreground mb-1 block">Role *</label>
@@ -289,6 +299,7 @@ export default function AdminUsersPage() {
       )}
 
       <UserModal
+        key={showModal ? (editing?.id ?? "new") : "closed"}
         open={showModal} onClose={() => setShowModal(false)}
         editing={editing}
         roles={rolesData?.roles ?? []}

@@ -21,11 +21,11 @@ const ALL_NAV = [
   { to: "/strangers",   icon: Ghost,           label: "Notanishlar",      group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "strangers.view" },
   { to: "/card-logs",   icon: CreditCard,      label: "ID Karta",         group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "card_logs.view" },
   { to: "/missing-images", icon: ImageOff,     label: "Rasmsiz log'lar",  group: "Ma'lumotlar", roles: ["admin", "manager"],              perm: "logs.view" },
-  { to: "/image-health",   icon: ScanLine,     label: "Rasm sog'lig'i",   group: "Boshqaruv",   roles: ["admin"],                         perm: "logs.view" },
   { to: "/analytics",   icon: BarChart3,       label: "Statistika",       group: "Tahlil",      roles: ["admin", "manager"],              perm: "analytics.view" },
+  { to: "/image-health",   icon: ScanLine,     label: "Rasm sog'lig'i",   group: "Tahlil",      roles: ["admin"],                         perm: "logs.view" },
+  { to: "/settings",    icon: Settings,        label: "Sozlamalar",       group: "Tahlil",      roles: ["admin"],                         perm: "settings.view" },
   { to: "/admin-users", icon: ShieldCheck,     label: "Admin userlar",    group: "Boshqaruv",   roles: ["admin"],                         perm: "admin_users.read" },
   { to: "/audit",       icon: History,         label: "Audit log",        group: "Boshqaruv",   roles: ["admin"],                         perm: "audit.view" },
-  { to: "/settings",    icon: Settings,        label: "Sozlamalar",       group: "Boshqaruv",   roles: ["admin"],                         perm: "settings.view" },
 ] as const;
 
 // Mobile bottom nav — 5 ta asosiy sahifa

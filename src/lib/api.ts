@@ -404,6 +404,25 @@ export const api = {
     fetchApi<PaginatedResponse<AuditLogItem>>("/rbac/audit/",
       Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
 
+  // Missing images / refetch
+  missingImages: (p: { page?: number; per_page?: number; search?: string } = {}) =>
+    fetchApi<PaginatedResponse<{
+      name: string; full_name: string; role: string;
+      missing: number; total_logs: number; missing_pct: number;
+    }> & { summary: { total_missing: number; affected_users: number } }>("/logs/missing-images/",
+      Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
+  refetchImagesStart: (data: { name?: string | null; limit?: number }) =>
+    postApi<{ job_id: string; status: string; name: string | null; limit: number }>(
+      "/logs/refetch-images/", data,
+    ),
+  refetchImagesStatus: (jobId: string) =>
+    fetchApi<{
+      status: "queued" | "running" | "done" | "partial";
+      name: string | null; total: number; fetched: number; failed: number;
+      errors?: { id: number; error: string }[];
+      updated_at?: string;
+    }>(`/logs/refetch-status/${jobId}/`),
+
   bulkBlockExcel: async (file: File, action: "block" | "unblock") => {
     const fd = new FormData();
     fd.append("file", file);

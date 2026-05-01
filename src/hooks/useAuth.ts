@@ -28,32 +28,59 @@ export function useAuth() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false;
+    const refresh = async (firstRun = false) => {
       try {
         const res = await fetch(`${API_BASE}/auth/check/`, { credentials: "include" });
         if (!res.ok) throw new Error('invalid');
         const data = await res.json();
+        if (cancelled) return;
         const u: AuthUser = {
           username: data.username, role: data.role,
           full_name: data.full_name || "",
           permissions: data.permissions || [],
         };
-        setUser(u);
-        localStorage.setItem(USER_KEY, JSON.stringify(u));
+        setUser(prev => {
+          const same = prev
+            && prev.username === u.username
+            && prev.role === u.role
+            && prev.full_name === u.full_name
+            && (prev.permissions || []).join("|") === (u.permissions || []).join("|");
+          if (same) return prev;
+          localStorage.setItem(USER_KEY, JSON.stringify(u));
+          return u;
+        });
       } catch {
-        clearAuth();
-        setUser(null);
+        if (cancelled) return;
+        if (firstRun) {
+          clearAuth();
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (firstRun && !cancelled) setLoading(false);
       }
-    })();
+    };
+
+    refresh(true);
+    // Permission/role o'zgartirilganda darhol ko'rinadi (har 30s + window focus + custom event)
+    const interval = setInterval(() => refresh(false), 30_000);
+    const onFocus = () => refresh(false);
+    const onAuthRefresh = () => refresh(false);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('auth:refresh', onAuthRefresh);
 
     const onAuthExpired = () => {
       clearAuth();
       setUser(null);
     };
     window.addEventListener('auth:expired', onAuthExpired);
-    return () => window.removeEventListener('auth:expired', onAuthExpired);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('auth:refresh', onAuthRefresh);
+      window.removeEventListener('auth:expired', onAuthExpired);
+    };
   }, []);
 
   const signIn = useCallback(async (username: string, password: string) => {

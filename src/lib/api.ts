@@ -220,7 +220,30 @@ export interface AttendanceProfile {
     total_work_days: number;
     attendance_pct: number;
     avg_late_min: number | null;
+    total_late_min: number;
+    avg_work_sec: number | null;
+    total_work_sec: number;
+    best_streak: number;
+    earliest_arrival: { time: string; date: string } | null;
+    latest_arrival: { time: string; date: string } | null;
   };
+  trend: {
+    first_half_pct: number | null;
+    second_half_pct: number | null;
+    delta: number;
+    direction: "up" | "down" | "flat";
+  };
+  weekday_stats: {
+    weekday: number;
+    label: string;
+    on_time: number;
+    late: number;
+    absent: number;
+    total: number;
+    on_time_pct: number | null;
+    avg_arrival_min: number | null;
+    avg_arrival: string | null;
+  }[];
   timeline: AttendanceDay[];
   arrival_chart: { date: string; minutes: number }[];
   recent_images: { time: string; image: string }[];

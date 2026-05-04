@@ -8,8 +8,9 @@ import {
   ResponsiveContainer, ReferenceLine, Cell,
 } from "recharts";
 import {
-  User, Clock, TrendingUp, AlertCircle, CalendarX, X,
+  User, Clock, TrendingUp, TrendingDown, AlertCircle, CalendarX, X,
   Flame, Award, Zap, Settings, BarChart2, CheckCircle2,
+  Sunrise, Sunset, Timer, Hourglass, Minus,
 } from "lucide-react";
 
 interface Props {
@@ -36,6 +37,29 @@ function fmtLateSec(sec: number) {
 function fmtDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleDateString("uz-UZ", { day: "numeric", month: "short" });
+}
+
+function fmtDuration(sec: number | null | undefined) {
+  if (!sec) return "—";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  if (h && m) return `${h} soat ${m} daq`;
+  if (h) return `${h} soat`;
+  return `${m} daq`;
+}
+
+function fmtHoursShort(sec: number | null | undefined) {
+  if (!sec) return "—";
+  const h = sec / 3600;
+  return h >= 10 ? `${Math.round(h)} soat` : `${h.toFixed(1)} soat`;
+}
+
+function fmtLateMin(min: number | null | undefined) {
+  if (!min) return "—";
+  if (min < 60) return `${min} daq`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m ? `${h} soat ${m} daq` : `${h} soat`;
 }
 
 function timeToMin(t: string) {
@@ -242,6 +266,15 @@ export default function AttendanceSheet({ name, open, onClose }: Props) {
                   label="Davomat"
                   value={`${data.stats.attendance_pct}%`}
                   color={data.stats.attendance_pct >= 80 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600"}
+                  hint={
+                    data.trend.direction === "up" ? (
+                      <span className="flex items-center gap-0.5 text-emerald-500"><TrendingUp className="w-2.5 h-2.5" />+{data.trend.delta}%</span>
+                    ) : data.trend.direction === "down" ? (
+                      <span className="flex items-center gap-0.5 text-rose-500"><TrendingDown className="w-2.5 h-2.5" />{data.trend.delta}%</span>
+                    ) : data.trend.first_half_pct != null ? (
+                      <span className="flex items-center gap-0.5 text-muted-foreground"><Minus className="w-2.5 h-2.5" />barqaror</span>
+                    ) : null
+                  }
                 />
                 <StatCard
                   icon={<AlertCircle className="w-3.5 h-3.5" />}
@@ -263,6 +296,102 @@ export default function AttendanceSheet({ name, open, onClose }: Props) {
                 />
               </div>
             ) : null}
+
+            {/* Highlights — earliest / latest / longest streak / total late */}
+            {!isLoading && data && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Asosiy ko'rsatkichlar</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <HighlightCard
+                    icon={<Sunrise className="w-3.5 h-3.5 text-emerald-500" />}
+                    label="Eng erta kelish"
+                    value={data.stats.earliest_arrival?.time ?? "—"}
+                    sub={data.stats.earliest_arrival ? fmtDate(data.stats.earliest_arrival.date) : ""}
+                  />
+                  <HighlightCard
+                    icon={<Sunset className="w-3.5 h-3.5 text-rose-500" />}
+                    label="Eng kech kelish"
+                    value={data.stats.latest_arrival?.time ?? "—"}
+                    sub={data.stats.latest_arrival ? fmtDate(data.stats.latest_arrival.date) : ""}
+                  />
+                  <HighlightCard
+                    icon={<Flame className="w-3.5 h-3.5 text-orange-500" />}
+                    label="Eng uzun seriya"
+                    value={`${data.stats.best_streak} kun`}
+                    sub="ketma-ket kelgan"
+                  />
+                  <HighlightCard
+                    icon={<AlertCircle className="w-3.5 h-3.5 text-amber-500" />}
+                    label="Jami kechikish"
+                    value={fmtLateMin(data.stats.total_late_min)}
+                    sub={`${data.stats.late_count} kun`}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Work duration */}
+            {!isLoading && data && (data.stats.avg_work_sec || data.stats.total_work_sec) ? (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Ish davomiyligi</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <HighlightCard
+                    icon={<Timer className="w-3.5 h-3.5 text-blue-500" />}
+                    label="O'rtacha ish kuni"
+                    value={fmtDuration(data.stats.avg_work_sec)}
+                    sub="kirish → chiqish"
+                  />
+                  <HighlightCard
+                    icon={<Hourglass className="w-3.5 h-3.5 text-violet-500" />}
+                    label="Jami ish vaqti"
+                    value={fmtHoursShort(data.stats.total_work_sec)}
+                    sub={`${days} kun ichida`}
+                  />
+                </div>
+              </div>
+            ) : null}
+
+            {/* Weekday breakdown */}
+            {!isLoading && data?.weekday_stats?.some((w) => w.total > 0) && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Hafta kunlari bo'yicha</p>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {data.weekday_stats.map((w) => {
+                    const pct = w.on_time_pct;
+                    const barColor =
+                      pct == null ? "bg-slate-200 dark:bg-slate-700" :
+                      pct >= 80 ? "bg-emerald-500" :
+                      pct >= 50 ? "bg-amber-400" : "bg-rose-400";
+                    return (
+                      <div
+                        key={w.weekday}
+                        className="bg-muted/30 rounded-lg p-2 flex flex-col items-center gap-1"
+                        title={`${w.label}: ${w.on_time} o'z vaqtida, ${w.late} kech, ${w.absent} kelmagan${w.avg_arrival ? ` · o'rt ${w.avg_arrival}` : ""}`}
+                      >
+                        <span className="text-[10px] font-semibold text-muted-foreground">{w.label}</span>
+                        <div className="w-full h-12 bg-muted/40 rounded-md relative overflow-hidden flex items-end">
+                          {pct != null && (
+                            <div
+                              className={`w-full ${barColor} transition-all`}
+                              style={{ height: `${Math.max(pct, 4)}%` }}
+                            />
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold tabular-nums">
+                          {pct != null ? `${pct}%` : "—"}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground tabular-nums">
+                          {w.avg_arrival ?? "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Ustun balandligi — o'sha kun ichida o'z vaqtida kelish ulushi · pastdagi vaqt — o'rtacha kelish
+                </p>
+              </div>
+            )}
 
             {/* Streak & badges */}
             {!isLoading && data?.timeline && (() => {
@@ -301,13 +430,31 @@ export default function AttendanceSheet({ name, open, onClose }: Props) {
                   Oxirgi {days} kun tarixi
                 </p>
                 <div className="flex flex-wrap gap-1">
-                  {data.timeline.map((day) => (
-                    <div
-                      key={day.date}
-                      title={`${fmtDate(day.date)}${day.entry ? ` — ${fmtTime(day.entry)}` : ""}${day.late_sec ? ` (+${fmtLateSec(day.late_sec)} kech)` : ""}`}
-                      className={`w-7 h-7 rounded-md ${STATUS_COLOR[day.status]} cursor-default transition-transform hover:scale-110`}
-                    />
-                  ))}
+                  {data.timeline.map((day) => {
+                    const d = new Date(day.date);
+                    const dayNum = d.getDate();
+                    const isMonthStart = dayNum === 1;
+                    const monthLabel = d.toLocaleDateString("uz-UZ", { month: "short" });
+                    const textColor =
+                      day.status === "absent"
+                        ? "text-slate-500 dark:text-slate-400"
+                        : "text-white";
+                    return (
+                      <div key={day.date} className="flex flex-col items-center gap-0.5">
+                        {isMonthStart && (
+                          <span className="text-[8px] font-semibold text-muted-foreground uppercase">
+                            {monthLabel}
+                          </span>
+                        )}
+                        <div
+                          title={`${fmtDate(day.date)}${day.entry ? ` — ${fmtTime(day.entry)}` : ""}${day.late_sec ? ` (+${fmtLateSec(day.late_sec)} kech)` : ""}`}
+                          className={`w-7 h-7 rounded-md ${STATUS_COLOR[day.status]} ${textColor} text-[10px] font-bold flex items-center justify-center cursor-default transition-transform hover:scale-110 tabular-nums`}
+                        >
+                          {dayNum}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="flex items-center gap-3 mt-2">
                   {[
@@ -437,12 +584,13 @@ export default function AttendanceSheet({ name, open, onClose }: Props) {
 }
 
 function StatCard({
-  icon, label, value, color,
+  icon, label, value, color, hint,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   color: string;
+  hint?: React.ReactNode;
 }) {
   return (
     <div className="bg-muted/30 rounded-xl p-3 flex flex-col gap-1">
@@ -450,7 +598,30 @@ function StatCard({
         {icon}
         <span className="text-[10px] font-medium truncate">{label}</span>
       </div>
-      <p className={`text-sm font-bold tabular-nums ${color}`}>{value}</p>
+      <div className="flex items-baseline justify-between gap-1">
+        <p className={`text-sm font-bold tabular-nums ${color}`}>{value}</p>
+        {hint && <span className="text-[9px] font-semibold tabular-nums">{hint}</span>}
+      </div>
+    </div>
+  );
+}
+
+function HighlightCard({
+  icon, label, value, sub,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="bg-muted/30 rounded-xl p-3 flex flex-col gap-1">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        {icon}
+        <span className="text-[10px] font-medium truncate">{label}</span>
+      </div>
+      <p className="text-base font-bold tabular-nums leading-tight">{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground truncate">{sub}</p>}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import {
 // super_admin har doim hammasini ko'radi.
 const ALL_NAV = [
   { to: "/",            icon: LayoutDashboard, label: "Dashboard",       group: "Asosiy",      roles: ["admin"], perm: "dashboard.view" },
-  { to: "/inside",      icon: UserCheck,       label: "Ichkarida",        group: "Asosiy",      roles: ["admin"], perm: "dashboard.view" },
+  { to: "/inside",      icon: UserCheck,       label: "Ichkarida",        group: "Asosiy",      roles: ["admin"], perm: "inside.view" },
   { to: "/devices",     icon: Router,          label: "Qurilmalar",       group: "Asosiy",      roles: ["admin"], perm: "devices.view" },
   { to: "/logs",        icon: ScrollText,      label: "Loglar",           group: "Ma'lumotlar", roles: ["admin"], perm: "logs.view" },
   { to: "/users",       icon: Users,           label: "Foydalanuvchilar", group: "Ma'lumotlar", roles: ["admin"], perm: "users.read" },

@@ -407,6 +407,43 @@ export const api = {
   clearMigrationHistory: () =>
     postApi<{ cleared: number }>("/storage/migrate/clear/", {}),
 
+  // ── Logs Excel eksport va job cancel ─────────────────────────
+  searchExportNames: (q: string) =>
+    fetchApi<{ data: { name: string; full_name: string; role: string }[] }>(
+      "/logs/export/names/", { q },
+    ),
+  exportUserMonth: async (
+    name: string, year: number, month: number,
+    workStart = "09:00", workEnd = "18:00",
+  ) => {
+    const url = new URL(`${API_BASE}/logs/export/user-month/`);
+    url.searchParams.set("name", name);
+    url.searchParams.set("year", String(year));
+    url.searchParams.set("month", String(month));
+    url.searchParams.set("work_start", workStart);
+    url.searchParams.set("work_end", workEnd);
+    const res = await fetch(url.toString(), { credentials: "include" });
+    if (!res.ok) {
+      handleUnauthorized(res.status);
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Eksport xatosi: ${res.status}`);
+    }
+    const blob = await res.blob();
+    const dispo = res.headers.get("content-disposition") || "";
+    const m = /filename="?([^"]+)"?/.exec(dispo);
+    const fname = m?.[1] || `attendance_${name}_${year}_${month}.xlsx`;
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fname;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+    return { filename: fname, size: blob.size };
+  },
+  cancelJob: (jobId: string) =>
+    postApi<{ job_id: string; status: string }>(`/logs/cancel-job/${jobId}/`, {}),
+
   // RBAC
   rbacUsers: (p: { search?: string; role?: string; include_deleted?: boolean } = {}) =>
     fetchApi<{ users: AdminUserItem[]; total: number }>("/rbac/users/",

@@ -4,12 +4,14 @@ import { api } from "@/lib/api";
 import {
   Search, ChevronLeft, ChevronRight, ArrowDownToLine,
   ArrowUpFromLine, Calendar, ScrollText, X, Eye, ShieldBan,
-  Loader2, User, Clock, Briefcase, CalendarRange,
+  Loader2, User, Clock, Briefcase, CalendarRange, FileSpreadsheet,
 } from "lucide-react";
 import AttendanceSheet from "@/components/AttendanceSheet";
+import ExportAttendanceDialog from "@/components/ExportAttendanceDialog";
 import { useNewIds } from "@/hooks/useNewIds";
 import { useLiveStream } from "@/hooks/useLiveStream";
 import { useFlipChildren } from "@/hooks/useFlipChildren";
+import { usePermission } from "@/hooks/usePermission";
 
 const DOOR_LABEL: Record<number, string> = {
   2489019: "1-eshik", 2489007: "2-eshik", 2489005: "3-eshik",
@@ -40,6 +42,8 @@ export default function LogsPage() {
   const [timeTo, setTimeTo] = useState("");
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const canExport = usePermission("logs.export");
 
   const queryClient = useQueryClient();
   const queryKey = ["logs", page, search, date, dateFrom, dateTo, direction, role, timeFrom, timeTo] as const;
@@ -116,6 +120,17 @@ export default function LogsPage() {
             {data && <span className="ml-2 font-medium text-foreground">({data.total.toLocaleString()} ta)</span>}
           </p>
         </div>
+
+        {canExport && (
+          <button
+            onClick={() => setExportOpen(true)}
+            className="h-9 px-3.5 rounded-xl text-sm font-semibold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 flex items-center gap-2 transition-colors"
+            title="Foydalanuvchi va oy bo'yicha Excel hisobot"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Excel eksport
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -394,6 +409,9 @@ export default function LogsPage() {
         open={!!selectedName}
         onClose={() => setSelectedName(null)}
       />
+
+      {/* Excel export dialog */}
+      <ExportAttendanceDialog open={exportOpen} onClose={() => setExportOpen(false)} />
 
       {/* Lightbox */}
       {lightbox && (

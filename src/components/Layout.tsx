@@ -57,6 +57,8 @@ export default function Layout() {
   useEffect(() => {
     if (!user) return;
     const path = location.pathname;
+    // /blocked har doim ruxsat (aks holda redirect cheksiz aylanadi)
+    if (path === "/blocked") return;
     const isAllowed = allowedPaths.some((p) =>
       p === "/" ? path === "/" : path === p || path.startsWith(p + "/")
     );

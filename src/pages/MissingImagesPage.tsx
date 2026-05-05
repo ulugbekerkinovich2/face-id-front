@@ -69,7 +69,7 @@ function JobToast({ job, onClose }: { job: JobState; onClose: () => void }) {
 
 export default function MissingImagesPage() {
   const qc = useQueryClient();
-  const canRefetch = usePermission("logs.view");
+  const canRefetch = usePermission("logs.missing_images");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");

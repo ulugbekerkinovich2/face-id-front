@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "@/lib/api";
+import { useLiveStream } from "@/hooks/useLiveStream";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -9,7 +10,7 @@ import {
 } from "recharts";
 import {
   Database, ScrollText, Heart, Ghost, Users, ShieldCheck,
-  Calendar, TrendingUp, Activity, Clock, Wifi, RefreshCw, ImageOff, AlertTriangle,
+  Calendar, TrendingUp, Activity, Clock, Wifi, RefreshCw, ImageOff, AlertTriangle, Upload,
 } from "lucide-react";
 
 function Num({ value }: { value: number }) {
@@ -63,6 +64,50 @@ export default function AnalyticsPage() {
   const { data: usersMgmt } = useQuery({ queryKey: ["usersManagementAnalytics"], queryFn: api.getUsersManagementAnalytics, staleTime: 120_000, enabled: !!full });
   const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats, staleTime: 600_000, enabled: !!full });
   const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 600_000, refetchInterval: 600_000, enabled: !!full });
+
+  useLiveStream(["events"], (event) => {
+    if (event.channel !== "events" || event.data?.type !== "storage.r2_upload") return;
+    queryClient.setQueryData(["storage"], (old: any) => {
+      if (!old) return old;
+
+      const next = {
+        ...old,
+        live_activity: {
+          window: old.live_activity?.window || "since_restart",
+          total_images: (old.live_activity?.total_images || 0) + 1,
+          total_bytes: (old.live_activity?.total_bytes || 0) + (event.data?.bytes || 0),
+          total_mb: Number((((old.live_activity?.total_bytes || 0) + (event.data?.bytes || 0)) / (1024 ** 2)).toFixed(3)),
+          by_account: [...(old.live_activity?.by_account || [])],
+          recent: [event.data, ...(old.live_activity?.recent || [])].slice(0, 40),
+        },
+      };
+
+      const idx = next.live_activity.by_account.findIndex((item: any) => item.account_key === event.data.account_key);
+      if (idx >= 0) {
+        const prev = next.live_activity.by_account[idx];
+        const bytesAdded = (prev.bytes_added || 0) + (event.data.bytes || 0);
+        next.live_activity.by_account[idx] = {
+          ...prev,
+          images_added: (prev.images_added || 0) + 1,
+          bytes_added: bytesAdded,
+          mb_added: Number((bytesAdded / (1024 ** 2)).toFixed(3)),
+          last_upload_at: event.data.time,
+        };
+      } else {
+        next.live_activity.by_account.push({
+          account_key: event.data.account_key,
+          account_label: event.data.account_label,
+          bucket: event.data.bucket,
+          images_added: 1,
+          bytes_added: event.data.bytes || 0,
+          mb_added: Number(((event.data.bytes || 0) / (1024 ** 2)).toFixed(3)),
+          last_upload_at: event.data.time,
+        });
+      }
+
+      return next;
+    });
+  });
 
   const PIE_COLORS = ["#10b981", "#f43f5e"];
 
@@ -511,6 +556,79 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
+          <div className="mb-4 rounded-xl border border-violet-200 bg-violet-50/50 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-violet-200/70">
+              <Upload className="w-4 h-4 text-violet-600" />
+              <span className="text-[12px] font-bold text-violet-900">Real-time yuklangan rasmlar</span>
+              <span className="text-[10px] text-violet-700/80 ml-auto">
+                {storage.live_activity?.window === "since_restart" ? "server restart'dan beri" : storage.live_activity?.window}
+              </span>
+            </div>
+            <div className="grid md:grid-cols-[0.85fr_1.15fr] gap-0">
+              <div className="p-4 border-b md:border-b-0 md:border-r border-violet-200/70">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-white/80 border border-violet-100 p-3">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-violet-700/80">Qo'shilgan rasm</p>
+                    <p className="text-2xl font-extrabold tabular-nums text-violet-900 mt-1">
+                      {(storage.live_activity?.total_images || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white/80 border border-violet-100 p-3">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-violet-700/80">Qo'shilgan hajm</p>
+                    <p className="text-2xl font-extrabold tabular-nums text-violet-900 mt-1">
+                      {Number(storage.live_activity?.total_mb || 0).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {(storage.live_activity?.by_account || []).length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">Hali yangi upload yo'q.</p>
+                  ) : (
+                    (storage.live_activity?.by_account || []).map((item: any) => (
+                      <div key={item.account_key} className="rounded-xl bg-white/80 border border-violet-100 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[11px] font-bold text-foreground">{item.account_label}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono">{item.bucket}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[11px] font-bold text-violet-700">+{item.images_added} rasm</p>
+                            <p className="text-[10px] text-muted-foreground">+{Number(item.mb_added || 0).toFixed(2)} MB</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-[12px] font-bold">So'nggi uploadlar</p>
+                  <p className="text-[10px] text-muted-foreground">{(storage.live_activity?.recent || []).length} ta event</p>
+                </div>
+                <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                  {(storage.live_activity?.recent || []).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-violet-200 px-3 py-4 text-[11px] text-muted-foreground">
+                      Rasm yuklanganda shu yerda qaysi R2 accountga nechta MB ketgani ko'rinadi.
+                    </div>
+                  ) : (
+                    (storage.live_activity?.recent || []).map((item: any, idx: number) => (
+                      <div key={`${item.name}-${item.time}-${idx}`} className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[11px] font-bold text-foreground truncate">{item.account_label}</p>
+                          <span className="text-[10px] font-semibold text-violet-700 whitespace-nowrap">+{Number(item.mb || 0).toFixed(2)} MB</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">{item.bucket}</p>
+                        <p className="text-[10px] text-muted-foreground truncate mt-1">{item.name}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Cost predictions */}
           {storage.predictions && (
             <div className="mb-4 rounded-xl border border-border/40 overflow-hidden">
@@ -595,6 +713,22 @@ export default function AnalyticsPage() {
                         <span className="text-[10px] text-muted-foreground">{acc.used_pct}% band</span>
                       )}
                     </div>
+                    {(() => {
+                      const live = (storage.live_activity?.by_account || []).find((item: any) => item.account_key === acc.account_key);
+                      if (!live) return null;
+                      return (
+                        <div className="mt-2 rounded-lg border border-violet-100 bg-violet-50/70 px-2.5 py-2">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="font-semibold text-violet-800">Real-time qo'shildi</span>
+                            <span className="font-bold text-violet-700">+{live.images_added} rasm</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] mt-1">
+                            <span className="text-muted-foreground">Hajm</span>
+                            <span className="font-semibold text-foreground">+{Number(live.mb_added || 0).toFixed(2)} MB</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </div>

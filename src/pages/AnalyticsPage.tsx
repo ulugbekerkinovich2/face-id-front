@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import {
   Database, ScrollText, Heart, Ghost, Users, ShieldCheck,
-  Calendar, TrendingUp, Activity, Clock, Wifi, RefreshCw,
+  Calendar, TrendingUp, Activity, Clock, Wifi, RefreshCw, ImageOff, AlertTriangle,
 } from "lucide-react";
 
 function Num({ value }: { value: number }) {
@@ -60,6 +60,7 @@ export default function AnalyticsPage() {
   const { data: hourly } = useQuery({ queryKey: ["hourlyChart"], queryFn: () => api.getHourlyChart(), staleTime: 300_000, enabled: !!full });
   const { data: topUsers } = useQuery({ queryKey: ["topAll"], queryFn: () => api.getTopUsers(30, 10), staleTime: 600_000, enabled: !!full });
   const { data: heartbeat } = useQuery({ queryKey: ["heartbeat"], queryFn: () => api.getHeartbeatStats(7), staleTime: 600_000, enabled: !!full });
+  const { data: usersMgmt } = useQuery({ queryKey: ["usersManagementAnalytics"], queryFn: api.getUsersManagementAnalytics, staleTime: 120_000, enabled: !!full });
   const { data: strangerStats } = useQuery({ queryKey: ["strangerStats"], queryFn: api.getStrangerStats, staleTime: 600_000, enabled: !!full });
   const { data: storage } = useQuery({ queryKey: ["storage"], queryFn: api.getStorageStats, staleTime: 600_000, refetchInterval: 600_000, enabled: !!full });
 
@@ -127,6 +128,161 @@ export default function AnalyticsPage() {
             <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-border/50 p-6 count-up" style={{ animationDelay: "300ms" }}>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              <h3 className="text-[15px] font-bold">Turniket User Management analitikasi</h3>
+            </div>
+            <p className="text-[12px] text-muted-foreground mt-1">
+              Barcha turniketlardan tortilgan `UsersManagement` yozuvlari bo‘yicha qamrov va nomuvofiqliklar
+            </p>
+          </div>
+          <div className="text-right">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+              usersMgmt?.status?.status === "running" ? "bg-blue-50 text-blue-700" :
+              usersMgmt?.status?.status === "error" ? "bg-rose-50 text-rose-700" :
+              "bg-emerald-50 text-emerald-700"
+            }`}>
+              {usersMgmt?.status?.status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : null}
+              {usersMgmt?.status?.status === "error" ? <AlertTriangle className="w-3 h-3" /> : null}
+              {usersMgmt?.status?.status || "idle"}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {usersMgmt?.generated_at ? new Date(usersMgmt.generated_at).toLocaleString() : "Hisoblanmoqda..."}
+            </p>
+          </div>
+        </div>
+
+        {!usersMgmt ? (
+          <div className="grid md:grid-cols-5 gap-3">
+            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[110px] rounded-2xl" />)}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
+              {[
+                { label: "Unikal user", value: usersMgmt.summary.unique_users, icon: Users, tone: "from-sky-500 to-blue-600" },
+                { label: "Replikatsiya", value: Number(usersMgmt.summary.coverage_pct.toFixed(1)), suffix: "%", icon: Database, tone: "from-violet-500 to-fuchsia-600" },
+                { label: "Hammasida bor", value: usersMgmt.summary.users_on_all_devices, icon: ShieldCheck, tone: "from-emerald-500 to-teal-600" },
+                { label: "Bloklangan", value: usersMgmt.summary.blocked_unique_users, icon: Wifi, tone: "from-rose-500 to-pink-600" },
+                { label: "Rasm qamrovi", value: Number(usersMgmt.summary.image_coverage_pct.toFixed(1)), suffix: "%", icon: ImageOff, tone: "from-amber-500 to-orange-600" },
+              ].map((card) => (
+                <div key={card.label} className="rounded-2xl border border-border/40 p-4 bg-gradient-to-br from-white to-muted/20">
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${card.tone} flex items-center justify-center shadow-lg mb-3`}>
+                    <card.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <p className="text-2xl font-extrabold tabular-nums">
+                    {typeof card.value === "number" && Number.isInteger(card.value) ? card.value.toLocaleString() : card.value}
+                    {card.suffix ?? ""}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1">{card.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid lg:grid-cols-[1.4fr_0.9fr] gap-5">
+              <div className="rounded-2xl border border-border/40 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
+                  <h4 className="text-[13px] font-bold">Qurilma kesimi</h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Har bir turniketda nechta user nusxasi va rasm borligi
+                  </p>
+                </div>
+                <div className="divide-y divide-border/20">
+                  {usersMgmt.by_device.map((device) => (
+                    <div key={device.device_id} className="px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                          <p className="text-[13px] font-bold">{device.device_id}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">{device.ip}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[12px] font-bold tabular-nums">{device.unique_users.toLocaleString()} user</p>
+                          <p className="text-[11px] text-muted-foreground">{device.coverage_pct}% qamrov</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 text-[11px]">
+                        <div className="rounded-lg bg-muted/30 px-2 py-1.5">
+                          <p className="text-muted-foreground">Jami</p>
+                          <p className="font-bold tabular-nums">{device.total_rows.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg bg-emerald-50 px-2 py-1.5">
+                          <p className="text-emerald-700">Aktiv</p>
+                          <p className="font-bold tabular-nums text-emerald-700">{device.active_rows.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg bg-rose-50 px-2 py-1.5">
+                          <p className="text-rose-700">Blok</p>
+                          <p className="font-bold tabular-nums text-rose-700">{device.blocked_rows.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg bg-amber-50 px-2 py-1.5">
+                          <p className="text-amber-700">Rasmsiz</p>
+                          <p className="font-bold tabular-nums text-amber-700">{device.missing_image_rows.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-border/40 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
+                    <h4 className="text-[13px] font-bold">Role bo‘yicha</h4>
+                  </div>
+                  <div className="p-4 space-y-2">
+                    {(usersMgmt.top_roles ?? []).map((item) => {
+                      const max = usersMgmt.top_roles?.[0]?.users ?? 1;
+                      return (
+                        <div key={item.role} className="flex items-center gap-2">
+                          <span className="text-[11px] text-muted-foreground w-24 truncate">{item.role}</span>
+                          <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-primary" style={{ width: `${(item.users / max) * 100}%` }} />
+                          </div>
+                          <span className="text-[11px] font-bold tabular-nums w-10 text-right">{item.users}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border/40 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
+                    <h4 className="text-[13px] font-bold">To‘liq tarqalmagan userlar</h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Hammasi emas, ayrim turniketlarda yo‘q foydalanuvchilar
+                    </p>
+                  </div>
+                  <div className="divide-y divide-border/20">
+                    {(usersMgmt.incomplete_users ?? []).length === 0 ? (
+                      <div className="px-4 py-6 text-[12px] text-emerald-700">Hammasi barcha turniketlarda bor.</div>
+                    ) : (
+                      usersMgmt.incomplete_users.map((item) => (
+                        <div key={item.name} className="px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[12px] font-bold truncate">{item.full_name}</p>
+                              <p className="text-[10px] text-muted-foreground font-mono truncate">{item.name}</p>
+                            </div>
+                            <span className="text-[11px] font-bold text-amber-600 whitespace-nowrap">
+                              {item.device_count}/{usersMgmt.summary.devices_total}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Yo‘q qurilmalar: {item.missing_devices.join(", ")}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ─── PERIOD COMPARISON ────────────────────────────── */}

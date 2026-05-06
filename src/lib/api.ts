@@ -320,6 +320,59 @@ export interface MigrationJob {
   updated_at?: string;
 }
 
+export interface UsersManagementAnalytics {
+  generated_at: string;
+  computing: boolean;
+  status: {
+    status: "idle" | "running" | "done" | "error";
+    updated_at?: string;
+    generated_at?: string;
+    error?: string;
+  };
+  summary: {
+    devices_total: number;
+    devices_with_users: number;
+    total_rows: number;
+    unique_users: number;
+    expected_rows: number;
+    coverage_pct: number;
+    users_on_all_devices: number;
+    users_missing_some_devices: number;
+    blocked_unique_users: number;
+    blocked_rows: number;
+    users_with_image: number;
+    users_without_image: number;
+    image_coverage_pct: number;
+  };
+  by_device: Array<{
+    device_id: string;
+    device_num: number;
+    ip: string;
+    direction: "IN" | "OUT" | "UNKNOWN";
+    total_rows: number;
+    active_rows: number;
+    blocked_rows: number;
+    unique_users: number;
+    with_image_rows: number;
+    missing_image_rows: number;
+    coverage_pct: number;
+    image_coverage_pct: number;
+    last_user_time: string | null;
+  }>;
+  top_roles: Array<{ role: string; users: number }>;
+  incomplete_users: Array<{
+    name: string;
+    full_name: string;
+    role: string | null;
+    device_count: number;
+    missing_count: number;
+    missing_devices: string[];
+    blocked_devices: string[];
+    has_image: boolean;
+    last_seen: string | null;
+  }>;
+}
+
 export interface PaginatedResponse<T> {
   total: number; page: number; per_page: number; total_pages: number; data: T[];
 }
@@ -394,6 +447,7 @@ export const api = {
   getMonthlyChart: () => fetchApi<{ data: any[] }>("/analytics/monthly/"),
   getWeeklyChart: (weeks = 12) => fetchApi<{ data: any[] }>("/analytics/weekly/", { weeks: String(weeks) }),
   getHeartbeatStats: (days = 7) => fetchApi<any>("/analytics/heartbeat/", { days: String(days) }),
+  getUsersManagementAnalytics: () => fetchApi<UsersManagementAnalytics>("/analytics/users-management/"),
   getStrangerStats: () => fetchApi<any>("/analytics/strangers/"),
   getDeviceDetail: (deviceNum: number, days = 30) => fetchApi<any>(`/analytics/device/${deviceNum}/`, { days: String(days) }),
   getStorageStats: () => fetchApi<any>("/analytics/storage/"),

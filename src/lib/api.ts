@@ -187,6 +187,27 @@ export interface BlockResponse {
   db_user_id?: number | null;
 }
 
+export interface UsersSyncStatus {
+  status: "idle" | "queued" | "running" | "done" | "error";
+  updated_at?: string;
+  devices_total?: number;
+  devices_done?: number;
+  processed?: number;
+  created?: number;
+  updated?: number;
+  skipped?: number;
+  failed?: number;
+  current_device?: string;
+  error?: string;
+}
+
+export interface UsersSyncStartResponse {
+  ok: boolean;
+  queued: boolean;
+  message?: string;
+  error?: string;
+}
+
 export interface UserDetail extends User {
   recent_entries: { time: string; face_id: number; direction: string; similarity: number }[];
 }
@@ -332,6 +353,8 @@ export const api = {
   // Users CRUD
   getUsers: (p: { page?: number; per_page?: number; search?: string; face_id?: string }) =>
     fetchApi<PaginatedResponse<User>>("/users/", Object.fromEntries(Object.entries(p).map(([k, v]) => [k, String(v ?? "")]))),
+  getUsersSyncStatus: () => fetchApi<UsersSyncStatus>("/users/sync/"),
+  startUsersSync: () => postApi<UsersSyncStartResponse>("/users/sync/", {}),
   getUser: (id: number) => fetchApi<UserDetail>(`/users/${id}/`),
   addUser: (data: { name: string; gender: number; extra_info?: string; rf_id_card?: number }) =>
     postApi<{ status: string; user_id: number; message: string }>("/users/add/", data),
@@ -523,4 +546,3 @@ export const api = {
     return res.json();
   },
 };
-

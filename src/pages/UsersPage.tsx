@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, User } from "@/lib/api";
+import { useLiveStream } from "@/hooks/useLiveStream";
 import { toast } from "sonner";
 import {
   Search, UserPlus, Trash2,
-  ChevronLeft, ChevronRight, Users, X, Loader2,
+  ChevronLeft, ChevronRight, Users, X, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Database,
 } from "lucide-react";
 
 function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -64,11 +65,22 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const syncToastRef = useRef<string | null>(null);
+
+  const { data: syncStatus } = useQuery({
+    queryKey: ["users-sync-status"],
+    queryFn: api.getUsersSyncStatus,
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      return status === "queued" || status === "running" ? 2000 : 15000;
+    },
+  });
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["users", page, search],
     queryFn: () => api.getUsers({ page, per_page: 30, search }),
     staleTime: 15_000,
+    refetchInterval: syncStatus?.status === "queued" || syncStatus?.status === "running" ? 5000 : false,
     placeholderData: (prev: any) => prev,
   });
 
@@ -76,6 +88,54 @@ export default function UsersPage() {
     mutationFn: api.deleteUser,
     onSuccess: () => { toast.success("O'chirildi"); qc.invalidateQueries({ queryKey: ["users"] }); },
   });
+
+  const syncMut = useMutation({
+    mutationFn: api.startUsersSync,
+    onSuccess: (res) => {
+      toast.success(res.message || "Device sync ishga tushdi");
+      qc.invalidateQueries({ queryKey: ["users-sync-status"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Users sync ishga tushmadi"),
+  });
+
+  useEffect(() => {
+    if (!syncStatus?.updated_at) return;
+    const marker = `${syncStatus.status}:${syncStatus.updated_at}`;
+    if (syncToastRef.current === marker) return;
+
+    if (syncStatus.status === "done") {
+      syncToastRef.current = marker;
+      toast.success(`Users sync tugadi: ${syncStatus.created ?? 0} ta yangi, ${syncStatus.updated ?? 0} ta yangilandi`);
+      qc.invalidateQueries({ queryKey: ["users"] });
+      return;
+    }
+
+    if (syncStatus.status === "error") {
+      syncToastRef.current = marker;
+      toast.error(syncStatus.error || "Users sync xatolik bilan tugadi");
+    }
+  }, [qc, syncStatus]);
+
+  useLiveStream(["events"], (event) => {
+    if (event.channel !== "events") return;
+    const type = event.data?.type;
+    if (type === "users.sync.started" || type === "users.sync.completed") {
+      qc.invalidateQueries({ queryKey: ["users-sync-status"] });
+    }
+    if (type === "users.sync.completed") {
+      qc.invalidateQueries({ queryKey: ["users"] });
+    }
+  });
+
+  const isSyncRunning = syncStatus?.status === "queued" || syncStatus?.status === "running";
+  const syncProcessed = syncStatus?.processed ?? 0;
+  const syncCreated = syncStatus?.created ?? 0;
+  const syncUpdated = syncStatus?.updated ?? 0;
+  const syncSkipped = syncStatus?.skipped ?? 0;
+  const syncFailed = syncStatus?.failed ?? 0;
+  const syncDevicesDone = syncStatus?.devices_done ?? 0;
+  const syncDevicesTotal = syncStatus?.devices_total ?? 0;
+  const syncPct = syncDevicesTotal > 0 ? Math.round((syncDevicesDone / syncDevicesTotal) * 100) : 0;
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -91,6 +151,90 @@ export default function UsersPage() {
           className="h-9 px-4 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 flex items-center gap-2 shadow-sm shadow-primary/20">
           <UserPlus className="w-3.5 h-3.5" /> Yangi
         </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-border/50 p-4 lg:p-5 space-y-4 animate-in" style={{ animationDelay: "25ms" }}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                {isSyncRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+              </div>
+              <div>
+                <h2 className="text-sm font-bold">Qurilmadan foydalanuvchilarni tortish</h2>
+                <p className="text-[12px] text-muted-foreground">
+                  Device user list bazaga sync qilinadi va jadval avtomatik yangilanadi
+                </p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => syncMut.mutate()}
+            disabled={syncMut.isPending || isSyncRunning}
+            className="h-10 px-4 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 text-sm font-semibold flex items-center gap-2 shadow-sm shadow-primary/20"
+          >
+            {syncMut.isPending || isSyncRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Hozir sync qilish
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold ${
+            isSyncRunning ? "bg-blue-50 text-blue-700" :
+            syncStatus?.status === "done" ? "bg-emerald-50 text-emerald-700" :
+            syncStatus?.status === "error" ? "bg-rose-50 text-rose-700" :
+            "bg-muted text-muted-foreground"
+          }`}>
+            {isSyncRunning && <Loader2 className="w-3 h-3 animate-spin" />}
+            {syncStatus?.status === "done" && <CheckCircle2 className="w-3 h-3" />}
+            {syncStatus?.status === "error" && <AlertTriangle className="w-3 h-3" />}
+            Status: {syncStatus?.status || "idle"}
+          </span>
+          {syncStatus?.updated_at && (
+            <span className="text-muted-foreground">
+              Oxirgi yangilanish: {new Date(syncStatus.updated_at).toLocaleString()}
+            </span>
+          )}
+          {syncStatus?.current_device && isSyncRunning && (
+            <span className="text-muted-foreground">
+              Hozirgi qurilma: <span className="font-mono">{syncStatus.current_device}</span>
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          {[
+            { label: "Ko'rildi", value: syncProcessed, tone: "from-slate-50 to-slate-100 text-slate-800" },
+            { label: "Yangi", value: syncCreated, tone: "from-emerald-50 to-emerald-100 text-emerald-700" },
+            { label: "Yangilandi", value: syncUpdated, tone: "from-sky-50 to-sky-100 text-sky-700" },
+            { label: "Skip", value: syncSkipped, tone: "from-amber-50 to-amber-100 text-amber-700" },
+            { label: "Xato", value: syncFailed, tone: "from-rose-50 to-rose-100 text-rose-700" },
+          ].map((item) => (
+            <div key={item.label} className={`rounded-xl bg-gradient-to-br ${item.tone} border border-border/40 p-3`}>
+              <p className="text-[10px] uppercase tracking-wider font-bold opacity-70">{item.label}</p>
+              <p className="text-2xl font-extrabold tabular-nums mt-1">{item.value.toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+          <div className="flex items-center justify-between text-[11px] font-semibold mb-2">
+            <span>Qurilmalar progressi</span>
+            <span className="tabular-nums">{syncDevicesDone} / {syncDevicesTotal}</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-primary/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-500"
+              style={{ width: `${syncPct}%` }}
+            />
+          </div>
+        </div>
+
+        {syncStatus?.status === "error" && syncStatus.error && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
+            {syncStatus.error}
+          </div>
+        )}
       </div>
 
       {/* Search */}

@@ -75,7 +75,7 @@ export default function ExportAttendanceDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !downloading && onClose()}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] p-0 overflow-hidden top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/40">
           <DialogTitle className="flex items-center gap-2 text-base">
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
@@ -86,7 +86,7 @@ export default function ExportAttendanceDialog({ open, onClose }: Props) {
           </p>
         </DialogHeader>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="px-5 py-4 space-y-4 overflow-y-auto">
           {/* Name autocomplete */}
           <div>
             <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">

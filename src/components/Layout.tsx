@@ -42,6 +42,7 @@ export default function Layout() {
   // Role-based fallback yo'q: admin'ga ham permission qatlami qat'iy qo'llaniladi.
   const userPerms = new Set(user?.permissions ?? []);
   const isSuper = user?.role === "super_admin";
+  const notificationsEnabled = user?.role !== "admin" && user?.role !== "super_admin";
   const NAV = ALL_NAV.filter((n) => {
     if (!user) return false;
     if (isSuper) return true;
@@ -51,7 +52,7 @@ export default function Layout() {
   const allowedPaths = NAV.map((n) => n.to);
 
   // Global real-time notifications — har sahifada ishlaydi
-  useGlobalNotifications();
+  useGlobalNotifications(notificationsEnabled);
   const bottomNav = NAV.filter((n) => BOTTOM_NAV.includes(n.to as any));
 
   useEffect(() => {

@@ -37,7 +37,7 @@ interface StrangerPayload {
  *   strangers  — notanish yuz aniqlandi (toast amber)
  *   events     — admin event'lari (login, block, migration; toast severity bo'yicha)
  */
-export function useGlobalNotifications() {
+export function useGlobalNotifications(enabled = true) {
   // Duplicate suppression — bir xil id'li event ikki marta tushmasin
   const seenRef = useRef<Set<string>>(new Set());
 
@@ -51,6 +51,10 @@ export function useGlobalNotifications() {
     }
     return true;
   };
+
+  if (!enabled) {
+    return;
+  }
 
   useLiveStream<LogPayload | StrangerPayload | AppEvent>(
     ["logs", "strangers", "events"],

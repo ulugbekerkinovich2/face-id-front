@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, User } from "@/lib/api";
 import { useLiveStream } from "@/hooks/useLiveStream";
+import { usePermission } from "@/hooks/usePermission";
 import { toast } from "sonner";
 import {
   Search, UserPlus, Trash2,
   ChevronLeft, ChevronRight, Users, X, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Database, Router,
+  ShieldBan, ShieldCheck, List, FileSpreadsheet, Upload,
 } from "lucide-react";
 
 function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -59,12 +61,163 @@ function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+function BulkTextModal({ open, onClose, action }: { open: boolean; onClose: () => void; action: "block" | "unblock" }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+
+  const mut = useMutation({
+    mutationFn: () => {
+      const names = text.split(/[\n,\s]+/).map((n) => n.trim()).filter(Boolean);
+      return api.bulkBlock(names, action);
+    },
+    onMutate: () => {
+      const count = text.split(/[\n,\s]+/).filter(Boolean).length;
+      toast.loading(
+        action === "block"
+          ? `${count} ta user bloklanmoqda...`
+          : `${count} ta user blokdan chiqarilmoqda...`,
+        { id: "users-bulk-text" },
+      );
+    },
+    onSuccess: (d: any) => {
+      toast.success(
+        `${d.success}/${d.total} user ${action === "block" ? "bloklandi" : "blokdan chiqarildi"}`,
+        { id: "users-bulk-text", description: `Topilmadi: ${d.not_found}` },
+      );
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+      setText("");
+      onClose();
+    },
+    onError: () => toast.error("Xatolik", { id: "users-bulk-text" }),
+  });
+
+  if (!open) return null;
+  const count = text.split(/[\n,\s]+/).filter(Boolean).length;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl animate-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-border/30">
+          <div>
+            <h3 className="text-base font-bold">
+              {action === "block" ? "Ko'p userni bloklash" : "Ko'p userni blokdan chiqarish"}
+            </h3>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Passport yoki usernamelarni yozing</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-5 space-y-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={8}
+            placeholder="AD1234567&#10;AB7890123&#10;AC4567890"
+            className="w-full px-3 py-2.5 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono resize-none"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            {count > 0 ? `${count} ta user kiritildi` : "Har qatorda bitta user"}
+          </p>
+        </div>
+        <div className="flex gap-2 p-5 pt-0">
+          <button onClick={onClose} className="flex-1 h-10 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted">Bekor</button>
+          <button
+            onClick={() => mut.mutate()}
+            disabled={count === 0 || mut.isPending}
+            className={`flex-1 h-10 rounded-lg text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 ${
+              action === "block" ? "bg-rose-500 hover:bg-rose-600" : "bg-emerald-500 hover:bg-emerald-600"
+            }`}
+          >
+            {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : action === "block" ? <ShieldBan className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+            {action === "block" ? "Bloklash" : "Blokdan chiqarish"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExcelImportModal({ open, onClose, action }: { open: boolean; onClose: () => void; action: "block" | "unblock" }) {
+  const qc = useQueryClient();
+  const [file, setFile] = useState<File | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const mut = useMutation({
+    mutationFn: () => {
+      if (!file) throw new Error("Fayl tanlanmagan");
+      return api.bulkBlockExcel(file, action);
+    },
+    onMutate: () => {
+      toast.loading(
+        action === "block" ? "Excel bo'yicha bloklanmoqda..." : "Excel bo'yicha blokdan chiqarilmoqda...",
+        { id: "users-bulk-excel" },
+      );
+    },
+    onSuccess: (d: any) => {
+      toast.success(`${d.success}/${d.total} user ishlandi`, {
+        id: "users-bulk-excel",
+        description: `Topilmadi: ${d.not_found}`,
+      });
+      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: ["blockedUsers"] });
+      setFile(null);
+      onClose();
+    },
+    onError: () => toast.error("Excel import xatoligi", { id: "users-bulk-excel" }),
+  });
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-border/30">
+          <div>
+            <h3 className="text-base font-bold">Excel bilan ko'p user</h3>
+            <p className="text-[12px] text-muted-foreground mt-0.5">{action === "block" ? "Bloklash" : "Blokdan chiqarish"}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted"><X className="w-4 h-4" /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <input ref={fileInput} type="file" accept=".xlsx,.xls" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
+          <button
+            onClick={() => fileInput.current?.click()}
+            className="w-full h-24 border-2 border-dashed border-border/60 rounded-xl hover:border-primary/40 hover:bg-muted/20 transition-all flex flex-col items-center justify-center gap-2 group"
+          >
+            <FileSpreadsheet className={`w-6 h-6 ${file ? "text-emerald-600" : "text-muted-foreground group-hover:text-primary"}`} />
+            <p className="text-[13px] font-semibold">{file ? file.name : "Excel fayl tanlang"}</p>
+            {!file && <p className="text-[11px] text-muted-foreground">.xlsx yoki .xls</p>}
+          </button>
+        </div>
+
+        <div className="flex gap-2 p-5 pt-0">
+          <button onClick={onClose} className="flex-1 h-10 rounded-lg text-sm font-medium bg-muted/50 hover:bg-muted">Bekor</button>
+          <button
+            onClick={() => mut.mutate()}
+            disabled={!file || mut.isPending}
+            className={`flex-1 h-10 rounded-lg text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 ${
+              action === "block" ? "bg-rose-500 hover:bg-rose-600" : "bg-emerald-500 hover:bg-emerald-600"
+            }`}
+          >
+            {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {action === "block" ? "Bloklash" : "Blokdan chiqarish"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function UsersPage() {
   const qc = useQueryClient();
+  const canBulk = usePermission("users.bulk");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulkText, setShowBulkText] = useState<"block" | "unblock" | null>(null);
+  const [showExcel, setShowExcel] = useState<"block" | "unblock" | null>(null);
   const [missingQuery, setMissingQuery] = useState("");
   const [selectedMissingDevice, setSelectedMissingDevice] = useState<string>("ALL");
   const syncToastRef = useRef<string | null>(null);
@@ -172,10 +325,32 @@ export default function UsersPage() {
             {isFetching && !isLoading && <Loader2 className="w-3 h-3 inline ml-2 animate-spin text-primary" />}
           </p>
         </div>
-        <button onClick={() => setShowAdd(true)}
-          className="h-9 px-4 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 flex items-center gap-2 shadow-sm shadow-primary/20">
-          <UserPlus className="w-3.5 h-3.5" /> Yangi
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {canBulk && (
+            <>
+              <button onClick={() => setShowBulkText("block")}
+                className="h-9 px-3 rounded-lg text-xs font-semibold bg-rose-500 text-white hover:bg-rose-600 flex items-center gap-2">
+                <List className="w-3.5 h-3.5" /> Ko'p bloklash
+              </button>
+              <button onClick={() => setShowExcel("block")}
+                className="h-9 px-3 rounded-lg text-xs font-semibold bg-white border border-border hover:bg-muted flex items-center gap-2">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Excel bloklash
+              </button>
+              <button onClick={() => setShowBulkText("unblock")}
+                className="h-9 px-3 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5" /> Ko'p chiqarish
+              </button>
+              <button onClick={() => setShowExcel("unblock")}
+                className="h-9 px-3 rounded-lg text-xs font-semibold bg-white border border-border hover:bg-muted flex items-center gap-2">
+                <Upload className="w-3.5 h-3.5 text-emerald-600" /> Excel chiqarish
+              </button>
+            </>
+          )}
+          <button onClick={() => setShowAdd(true)}
+            className="h-9 px-4 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary/90 flex items-center gap-2 shadow-sm shadow-primary/20">
+            <UserPlus className="w-3.5 h-3.5" /> Yangi
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-border/50 p-4 lg:p-5 space-y-4 animate-in" style={{ animationDelay: "25ms" }}>
@@ -508,6 +683,8 @@ export default function UsersPage() {
         )}
       </div>
       <AddUserModal open={showAdd} onClose={() => setShowAdd(false)} />
+      <BulkTextModal open={!!showBulkText && canBulk} onClose={() => setShowBulkText(null)} action={showBulkText || "block"} />
+      <ExcelImportModal open={!!showExcel && canBulk} onClose={() => setShowExcel(null)} action={showExcel || "block"} />
     </div>
   );
 }

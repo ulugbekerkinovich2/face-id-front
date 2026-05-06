@@ -371,6 +371,20 @@ export interface UsersManagementAnalytics {
     has_image: boolean;
     last_seen: string | null;
   }>;
+  missing_by_device: Array<{
+    device_id: string;
+    device_num: number;
+    direction: "IN" | "OUT" | "UNKNOWN";
+    missing_count: number;
+    missing_users: Array<{
+      name: string;
+      full_name: string;
+      role: string | null;
+      device_count: number;
+      has_image: boolean;
+      last_seen: string | null;
+    }>;
+  }>;
 }
 
 export interface PaginatedResponse<T> {

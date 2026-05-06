@@ -5,7 +5,7 @@ import { useLiveStream } from "@/hooks/useLiveStream";
 import { toast } from "sonner";
 import {
   Search, UserPlus, Trash2,
-  ChevronLeft, ChevronRight, Users, X, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Database,
+  ChevronLeft, ChevronRight, Users, X, Loader2, RefreshCw, CheckCircle2, AlertTriangle, Database, Router,
 } from "lucide-react";
 
 function AddUserModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -65,6 +65,8 @@ export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [missingQuery, setMissingQuery] = useState("");
+  const [selectedMissingDevice, setSelectedMissingDevice] = useState<string>("ALL");
   const syncToastRef = useRef<string | null>(null);
 
   const { data: syncStatus } = useQuery({
@@ -82,6 +84,13 @@ export default function UsersPage() {
     staleTime: 15_000,
     refetchInterval: syncStatus?.status === "queued" || syncStatus?.status === "running" ? 5000 : false,
     placeholderData: (prev: any) => prev,
+  });
+
+  const { data: usersMgmt } = useQuery({
+    queryKey: ["users-management-analytics"],
+    queryFn: api.getUsersManagementAnalytics,
+    staleTime: 120_000,
+    refetchInterval: syncStatus?.status === "queued" || syncStatus?.status === "running" ? 5000 : false,
   });
 
   const deleteMut = useMutation({
@@ -121,6 +130,7 @@ export default function UsersPage() {
     const type = event.data?.type;
     if (type === "users.sync.started" || type === "users.sync.completed") {
       qc.invalidateQueries({ queryKey: ["users-sync-status"] });
+      qc.invalidateQueries({ queryKey: ["users-management-analytics"] });
     }
     if (type === "users.sync.completed") {
       qc.invalidateQueries({ queryKey: ["users"] });
@@ -136,6 +146,21 @@ export default function UsersPage() {
   const syncDevicesDone = syncStatus?.devices_done ?? 0;
   const syncDevicesTotal = syncStatus?.devices_total ?? 0;
   const syncPct = syncDevicesTotal > 0 ? Math.round((syncDevicesDone / syncDevicesTotal) * 100) : 0;
+  const selectedMissingDeviceData =
+    selectedMissingDevice === "ALL"
+      ? null
+      : usersMgmt?.missing_by_device?.find((item) => item.device_id === selectedMissingDevice) ?? null;
+  const missingUsersSource =
+    selectedMissingDeviceData?.missing_users ?? usersMgmt?.incomplete_users ?? [];
+  const filteredMissingUsers = missingUsersSource.filter((item) => {
+    const q = missingQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      item.name?.toLowerCase().includes(q) ||
+      item.full_name?.toLowerCase().includes(q) ||
+      item.role?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="p-5 lg:p-6 space-y-5">
@@ -234,6 +259,171 @@ export default function UsersPage() {
           <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] text-rose-700">
             {syncStatus.error}
           </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-border/50 p-4 lg:p-5 space-y-4 animate-in" style={{ animationDelay: "35ms" }}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center">
+                <Router className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold">Turniket qurilmalari kesimida foydalanuvchilar</h2>
+                <p className="text-[12px] text-muted-foreground">
+                  Qaysi turniketda qancha user bor va qaysi user aynan qaysi turniketda yo‘qligi
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="text-[11px] text-muted-foreground text-right">
+            <div>Status: <span className="font-semibold text-foreground">{usersMgmt?.status?.status || "idle"}</span></div>
+            {usersMgmt?.generated_at && <div>{new Date(usersMgmt.generated_at).toLocaleString()}</div>}
+          </div>
+        </div>
+
+        {!usersMgmt ? (
+          <div className="grid md:grid-cols-4 gap-3">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-24 skeleton rounded-xl" />)}
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+              {[
+                { label: "Unikal user", value: usersMgmt.summary.unique_users, tone: "from-sky-50 to-sky-100 text-sky-700" },
+                { label: "Jami nusxa", value: usersMgmt.summary.total_rows, tone: "from-slate-50 to-slate-100 text-slate-800" },
+                { label: "Hammasida bor", value: usersMgmt.summary.users_on_all_devices, tone: "from-emerald-50 to-emerald-100 text-emerald-700" },
+                { label: "Yo'q qurilmali", value: usersMgmt.summary.users_missing_some_devices, tone: "from-amber-50 to-amber-100 text-amber-700" },
+                { label: "Qamrov", value: `${usersMgmt.summary.coverage_pct}%`, tone: "from-violet-50 to-violet-100 text-violet-700" },
+              ].map((item) => (
+                <div key={item.label} className={`rounded-xl bg-gradient-to-br ${item.tone} border border-border/40 p-3`}>
+                  <p className="text-[10px] uppercase tracking-wider font-bold opacity-70">{item.label}</p>
+                  <p className="text-2xl font-extrabold tabular-nums mt-1">
+                    {typeof item.value === "number" ? item.value.toLocaleString() : item.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid xl:grid-cols-[1.2fr_1fr] gap-4">
+              <div className="rounded-xl border border-border/40 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border/30 bg-muted/20">
+                  <h3 className="text-[12px] font-bold">Qurilma bo‘yicha sonlar</h3>
+                </div>
+                <div className="divide-y divide-border/20">
+                  {usersMgmt.by_device.map((device) => (
+                    <button
+                      key={device.device_id}
+                      onClick={() => setSelectedMissingDevice(device.device_id)}
+                      className={`w-full text-left px-4 py-3 transition-colors ${
+                        selectedMissingDevice === device.device_id ? "bg-primary/5" : "hover:bg-muted/20"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[13px] font-bold">{device.device_id}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono">{device.ip}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[12px] font-bold tabular-nums">{device.unique_users.toLocaleString()} user</p>
+                          <p className="text-[11px] text-amber-600">{device.coverage_pct}% qamrov</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 mt-2 text-[11px]">
+                        <div className="rounded-lg bg-muted/30 px-2 py-1">
+                          <p className="text-muted-foreground">Jami</p>
+                          <p className="font-bold tabular-nums">{device.total_rows.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg bg-emerald-50 px-2 py-1">
+                          <p className="text-emerald-700">Aktiv</p>
+                          <p className="font-bold tabular-nums text-emerald-700">{device.active_rows.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg bg-rose-50 px-2 py-1">
+                          <p className="text-rose-700">Blok</p>
+                          <p className="font-bold tabular-nums text-rose-700">{device.blocked_rows.toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg bg-amber-50 px-2 py-1">
+                          <p className="text-amber-700">Rasmsiz</p>
+                          <p className="font-bold tabular-nums text-amber-700">{device.missing_image_rows.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border/40 overflow-hidden">
+                <div className="px-4 py-3 border-b border-border/30 bg-muted/20 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-[12px] font-bold">
+                        {selectedMissingDevice === "ALL"
+                          ? "Ayrim turniketlarda yo‘q userlar"
+                          : `${selectedMissingDevice} da yo‘q userlar`}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">
+                        {selectedMissingDevice === "ALL"
+                          ? "Har bir user uchun yo‘q bo‘lgan turniketlar ro‘yxati"
+                          : "Tanlangan turniketda yo‘q foydalanuvchilar"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedMissingDevice("ALL")}
+                      className={`h-8 px-3 rounded-lg text-[11px] font-semibold transition-colors ${
+                        selectedMissingDevice === "ALL" ? "bg-primary text-white" : "bg-white border border-border/50 hover:bg-muted"
+                      }`}
+                    >
+                      Hammasi
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={missingQuery}
+                      onChange={(e) => setMissingQuery(e.target.value)}
+                      placeholder="Ism yoki lavozim..."
+                      className="w-full h-9 pl-8 pr-3 text-sm rounded-lg border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-[520px] overflow-y-auto divide-y divide-border/20">
+                  {filteredMissingUsers.length === 0 ? (
+                    <div className="px-4 py-10 text-center text-[12px] text-muted-foreground">
+                      Muammo topilmadi
+                    </div>
+                  ) : (
+                    filteredMissingUsers.map((item: any) => (
+                      <div key={`${item.name}-${item.last_seen || "none"}`} className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-bold truncate">{item.full_name || item.name}</p>
+                            <p className="text-[10px] text-muted-foreground font-mono truncate">{item.name}</p>
+                          </div>
+                          <span className="text-[11px] font-bold text-amber-600 whitespace-nowrap">
+                            {item.device_count}/{usersMgmt.summary.devices_total}
+                          </span>
+                        </div>
+                        {item.role && (
+                          <p className="text-[10px] text-primary mt-1">{item.role}</p>
+                        )}
+                        {"missing_devices" in item && Array.isArray(item.missing_devices) ? (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Yo‘q turniketlar: {item.missing_devices.join(", ")}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Tanlangan turniketda yo‘q
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

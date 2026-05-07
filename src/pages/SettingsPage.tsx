@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { api, MigrationJob } from "@/lib/api";
 import { useAnimatedNumber } from "@/hooks/useAnimatedNumber";
+import { useLiveStream } from "@/hooks/useLiveStream";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   HardDrive, Database, Router, Cpu,
   Wifi, CheckCircle, AlertTriangle, ArrowRight,
   Loader2, MoveRight, RefreshCw, Copy, Trash2,
-  XCircle, Clock, Zap, FileCheck2, X, Info,
+  XCircle, Clock, Zap, FileCheck2, X, Info, Upload,
 } from "lucide-react";
 
 // Account label'lari dinamik — backend settings_info dan keladi (bu yerda
@@ -43,6 +44,48 @@ function fmtBytes(b: number): string {
   if (b < 1024 ** 2) return `${(b / 1024).toFixed(1)} KB`;
   if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1)} MB`;
   return `${(b / 1024 ** 3).toFixed(2)} GB`;
+}
+
+function applyStorageUploadEvent(old: any, event: any) {
+  if (!old) return old;
+
+  const next = {
+    ...old,
+    live_activity: {
+      window: old.live_activity?.window || "today",
+      date: event.data?.date || old.live_activity?.date,
+      total_images: (old.live_activity?.total_images || 0) + 1,
+      total_bytes: (old.live_activity?.total_bytes || 0) + (event.data?.bytes || 0),
+      total_mb: Number((((old.live_activity?.total_bytes || 0) + (event.data?.bytes || 0)) / (1024 ** 2)).toFixed(3)),
+      by_account: [...(old.live_activity?.by_account || [])],
+      recent: [event.data, ...(old.live_activity?.recent || [])].slice(0, 40),
+    },
+  };
+
+  const idx = next.live_activity.by_account.findIndex((item: any) => item.account_key === event.data.account_key);
+  if (idx >= 0) {
+    const prev = next.live_activity.by_account[idx];
+    const bytesAdded = (prev.bytes_added || 0) + (event.data.bytes || 0);
+    next.live_activity.by_account[idx] = {
+      ...prev,
+      images_added: (prev.images_added || 0) + 1,
+      bytes_added: bytesAdded,
+      mb_added: Number((bytesAdded / (1024 ** 2)).toFixed(3)),
+      last_upload_at: event.data.time,
+    };
+  } else {
+    next.live_activity.by_account.push({
+      account_key: event.data.account_key,
+      account_label: event.data.account_label,
+      bucket: event.data.bucket,
+      images_added: 1,
+      bytes_added: event.data.bytes || 0,
+      mb_added: Number(((event.data.bytes || 0) / (1024 ** 2)).toFixed(3)),
+      last_upload_at: event.data.time,
+    });
+  }
+
+  return next;
 }
 
 interface StorageAccount {
@@ -648,6 +691,7 @@ function Num({ value }: { value: number }) {
 }
 
 export default function SettingsPage() {
+  const queryClient = useQueryClient();
   const { data: info } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.getSettings(),
@@ -661,6 +705,11 @@ export default function SettingsPage() {
     refetchOnMount: true,
     // Backend "computing: true" qaytarsa — har 5 sek qayta so'rash
     refetchInterval: (query) => (query.state.data?.computing ? 5000 : false),
+  });
+
+  useLiveStream(["events"], (event) => {
+    if (event.channel !== "events" || event.data?.type !== "storage.r2_upload") return;
+    queryClient.setQueryData(["storage"], (old: any) => applyStorageUploadEvent(old, event));
   });
 
   return (
@@ -702,6 +751,7 @@ export default function SettingsPage() {
                 const hasStats = acc.size_gb !== undefined;
                 const isLimit = hasStats && acc.size_gb >= 9.5;
                 const pct = hasStats ? acc.used_pct : 0;
+                const live = (storage?.live_activity?.by_account || []).find((item: any) => item.account_key === (acc.account_key ?? acc.name));
                 return (
                   <div key={acc.name || i} className={`border rounded-xl p-4 transition-all ${isLimit ? "border-rose-300 bg-rose-50/30" : "border-border/40 hover:border-primary/30"}`}>
                     <div className="flex items-center justify-between mb-3">
@@ -730,6 +780,20 @@ export default function SettingsPage() {
                         <p className={`text-[10px] mt-1.5 text-right font-semibold ${isLimit ? "text-rose-500" : "text-muted-foreground"}`}>
                           {isLimit ? "LIMIT! Yangi account qo'shing" : `${pct}% band`}
                         </p>
+                        <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/70 px-3 py-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Upload className="w-3 h-3 text-sky-600" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Bugungi yuklama</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-muted-foreground">Fayl</span>
+                            <span className="font-bold text-sky-900">+{Number(live?.images_added || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] mt-1">
+                            <span className="text-muted-foreground">Hajm</span>
+                            <span className="font-bold text-sky-900">+{Number(live?.mb_added || 0).toFixed(2)} MB</span>
+                          </div>
+                        </div>
                       </>
                     ) : (
                       <p className="text-[11px] text-emerald-600 font-medium">Ulangan</p>
@@ -750,6 +814,64 @@ export default function SettingsPage() {
         </div>
 
         <div className="mt-4 p-3 bg-blue-50/50 rounded-lg">
+          {storage?.live_activity && (
+            <div className="mb-4 rounded-xl border border-violet-200/70 bg-violet-50/60 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-violet-200/70">
+                <Upload className="w-4 h-4 text-violet-600" />
+                <span className="text-[12px] font-bold text-violet-900">Bugungi real-time upload</span>
+                <span className="text-[10px] text-violet-700/80 ml-auto">
+                  {storage.live_activity?.date || "bugun"}
+                </span>
+              </div>
+              <div className="grid md:grid-cols-[0.9fr_1.1fr] gap-0">
+                <div className="p-4 border-b md:border-b-0 md:border-r border-violet-200/70">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-white/80 border border-violet-100 p-3">
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-violet-700/80">Bugun qo'shildi</p>
+                      <p className="text-2xl font-extrabold tabular-nums text-violet-900 mt-1">
+                        {(storage.live_activity?.total_images || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white/80 border border-violet-100 p-3">
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-violet-700/80">Bugungi hajm</p>
+                      <p className="text-2xl font-extrabold tabular-nums text-violet-900 mt-1">
+                        {Number(storage.live_activity?.total_mb || 0).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-[12px] font-bold">So'nggi uploadlar</p>
+                    <p className="text-[10px] text-muted-foreground">{(storage.live_activity?.recent || []).length} ta event</p>
+                  </div>
+                  <div className="max-h-[220px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {(storage.live_activity?.recent || []).length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-violet-200 px-3 py-4 text-[11px] text-muted-foreground">
+                        Bugun rasm yuklanganda shu yerda qaysi R2 ga necha MB ketgani ko'rinadi.
+                      </div>
+                    ) : (
+                      (storage.live_activity?.recent || []).map((item: any, idx: number) => (
+                        <div key={`${item.name}-${item.time}-${idx}`} className="rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[11px] font-bold text-foreground truncate">{item.account_label}</p>
+                            <span className="text-[10px] font-semibold text-violet-700 whitespace-nowrap">+{Number(item.mb || 0).toFixed(2)} MB</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">{item.bucket}</p>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <p className="text-[10px] text-muted-foreground truncate">{item.name}</p>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                              {item.time ? new Date(item.time).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" }) : ""}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <p className="text-[11px] text-blue-700 font-medium">
             Yangi R2 account qo'shish uchun serverda <code className="bg-blue-100 px-1 rounded">.env</code> faylga kalitlarni qo'shing:
           </p>

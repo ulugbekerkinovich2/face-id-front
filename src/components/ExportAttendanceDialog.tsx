@@ -75,7 +75,7 @@ export default function ExportAttendanceDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && !downloading && onClose()}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[85vh] p-0 overflow-hidden top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%]">
+      <DialogContent className="w-full sm:max-w-lg max-h-[85vh] p-0 overflow-hidden flex flex-col">
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border/40">
           <DialogTitle className="flex items-center gap-2 text-base">
             <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
